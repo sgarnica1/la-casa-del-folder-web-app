@@ -1,0 +1,115 @@
+# Cursor Rules — Frontend (la-casa-del-folder-app)
+
+## Role of this Repository
+This repository contains the FRONTEND for an MVP photo-product system.
+
+Its purpose is to:
+- Define UI architecture
+- Define state contracts
+- Provide minimal user interaction
+- Enable draft creation, preview, locking, and order submission
+
+This repository is NOT responsible for:
+- Business rules
+- Draft validation logic
+- Pricing
+- Payment logic
+- Fulfillment logic
+
+The backend is the source of truth.
+
+---
+
+## Tech Stack (DO NOT CHANGE)
+- React
+- TypeScript
+- Vite
+- pnpm
+- Tailwind CSS
+- shadcn/ui
+- React Router
+- Zustand (preferred) or React Context
+- Vitest
+
+No additional frameworks without explicit instruction.
+
+---
+
+## Core Architectural Rules
+
+### 1. Draft Is the Core Entity
+- All flows revolve around a Draft
+- UI state must mirror backend Draft state
+- No “fake” or local-only draft representations
+
+### 2. Contracts First, UI Second
+- Draft, LayoutItem, EditorState types MUST be defined before UI
+- These types are the single source of truth
+- Components consume types; components do not redefine data models
+
+### 3. Editor Is a State Machine
+- One editor store only
+- No editor logic inside components
+- Editor state must be serializable
+- No derived hidden state
+
+### 4. Backend Authority
+The frontend MUST NOT:
+- Validate draft completeness
+- Calculate prices
+- Modify locked drafts
+- Assume state transitions
+
+All such decisions belong to the backend.
+
+---
+
+## MVP Scope Enforcement
+
+### INCLUDED
+- Upload images
+- Assign images to predefined layout slots
+- Preview final result
+- Lock draft
+- Submit fake order
+
+### EXCLUDED
+- Catalog browsing
+- Multiple products
+- Variants
+- Cart
+- Real payments
+- Shipping
+- PDF/export
+- Advanced editor tools
+- Undo/redo
+- Autoscaling layouts
+
+If a feature does not directly affect the order snapshot, it is OUT OF SCOPE.
+
+---
+
+## Styling Rules
+- Tailwind only
+- shadcn/ui components only
+- No inline styles
+- No custom CSS frameworks
+
+---
+
+## Testing Rules
+- Editor store logic must be testable
+- Components get basic render tests only
+- No E2E tests
+- No snapshot-heavy tests
+
+---
+
+## Generation Rules for Cursor
+When generating code:
+- Prefer clarity over abstraction
+- Do not invent features
+- Do not implement full editor behavior
+- Do not mock backend decisions
+
+If unsure whether something is setup or functionality: DO NOT IMPLEMENT IT.

@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build directories (if using TypeScript or build tools)
+dist/
+build/
+
+# Coverage reports
+coverage/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+
+# Lock files (optional, but recommended to commit for apps)
+# package-lock.json
+# yarn.lock
