@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+BRANCH_NAME=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+if [ -z "$BRANCH_NAME" ]; then
+  exit 0
+fi
+
+BRANCH_PATTERN="^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|hotfix)\/[a-z0-9-]+$|^(main|master|develop|release\/.*|hotfix\/.*)$"
+
+if ! echo "$BRANCH_NAME" | grep -qE "$BRANCH_PATTERN"; then
+  echo "❌ Invalid branch name: $BRANCH_NAME"
+  echo ""
+  echo "Branch names must follow one of these patterns:"
+  echo "  - type/description (e.g., feat/user-authentication, fix/login-bug)"
+  echo "  - main, master, develop"
+  echo "  - release/version or hotfix/description"
+  echo ""
+  echo "Valid types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, hotfix"
+  exit 1
+fi

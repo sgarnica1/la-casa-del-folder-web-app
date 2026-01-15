@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+BRANCH_NAME=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+if [ -z "$BRANCH_NAME" ]; then
+  exit 0
+fi
+
+PROTECTED_BRANCHES="main develop"
+
+for protected in $PROTECTED_BRANCHES; do
+  if [ "$BRANCH_NAME" = "$protected" ]; then
+    echo "❌ Pushes to '$protected' branch are not allowed."
+    echo ""
+    echo "Please create a feature branch and open a pull request instead."
+    echo "  Example: git checkout -b feat/your-feature-name"
+    exit 1
+  fi
+done
