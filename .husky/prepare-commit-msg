@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 BRANCH_NAME=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
 
 if [ -z "$BRANCH_NAME" ]; then
