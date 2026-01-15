@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { UploadPage } from '../UploadPage';
+import { EditorPage } from '../EditorPage';
 import { UploadedImagesProvider } from '@/contexts/UploadedImagesContext';
 import { apiClient } from '@/services/api-client';
 
@@ -15,7 +15,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
   </BrowserRouter>
 );
 
-describe('UploadPage', () => {
+describe('EditorPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockApiClient.getDraft.mockResolvedValue({
@@ -36,8 +36,8 @@ describe('UploadPage', () => {
     });
   });
 
-  it('should render upload page', () => {
-    render(<UploadPage />, { wrapper });
-    expect(screen.getByText(/subir imágenes/i)).toBeInTheDocument();
+  it('should render editor page', () => {
+    render(<EditorPage />, { wrapper });
+    expect(screen.getByText(/asignar imágenes/i)).toBeInTheDocument();
   });
 });

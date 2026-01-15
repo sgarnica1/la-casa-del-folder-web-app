@@ -3,7 +3,7 @@
  * This is serializable and testable
  */
 
-import type { Draft, LayoutItem } from './draft';
+import type { Draft } from './draft';
 import type { Layout } from './layout';
 
 export interface EditorState {
@@ -16,8 +16,7 @@ export interface EditorState {
 
 export interface UploadedImage {
   id: string;
-  file: File;
-  previewUrl: string;
+  url: string;
 }
 
 export interface EditorActions {
