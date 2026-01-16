@@ -40,14 +40,35 @@ async function handleFetchError(error: unknown): Promise<never> {
 
 class ApiClient {
   private baseUrl: string;
+  private getToken: (() => Promise<string | null>) | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
+  setTokenGetter(getToken: () => Promise<string | null>): void {
+    this.getToken = getToken;
+  }
+
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    const headers: HeadersInit = {};
+
+    if (this.getToken) {
+      const token = await this.getToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    return headers;
+  }
+
   async getDraft(draftId: string): Promise<Draft> {
     try {
-      const response = await fetch(`${this.baseUrl}/drafts/${draftId}`);
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/drafts/${draftId}`, {
+        headers,
+      });
       return handleResponse<Draft>(response);
     } catch (error) {
       return handleFetchError(error);
@@ -56,9 +77,10 @@ class ApiClient {
 
   async createDraft(productId: string, templateId: string): Promise<Draft> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/drafts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId, templateId }),
       });
       return handleResponse<Draft>(response);
@@ -69,9 +91,10 @@ class ApiClient {
 
   async updateDraft(draftId: string, updates: Partial<Draft>): Promise<Draft> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/drafts/${draftId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
       return handleResponse<Draft>(response);
@@ -82,8 +105,10 @@ class ApiClient {
 
   async lockDraft(draftId: string): Promise<Draft> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/drafts/${draftId}/lock`, {
         method: 'POST',
+        headers,
       });
       return handleResponse<Draft>(response);
     } catch (error) {
@@ -111,11 +136,13 @@ class ApiClient {
 
   async uploadImage(file: File): Promise<{ id: string; url: string }> {
     try {
+      const headers = await this.getAuthHeaders();
       const formData = new FormData();
       formData.append('file', file);
 
       const response = await fetch(`${this.baseUrl}/assets`, {
         method: 'POST',
+        headers,
         body: formData,
       });
       return handleResponse<{ id: string; url: string }>(response);
@@ -126,8 +153,11 @@ class ApiClient {
 
   async getImagesByIds(imageIds: string[]): Promise<Array<{ id: string; url: string }>> {
     try {
+      const headers = await this.getAuthHeaders();
       const ids = imageIds.join(',');
-      const response = await fetch(`${this.baseUrl}/assets?ids=${ids}`);
+      const response = await fetch(`${this.baseUrl}/assets?ids=${ids}`, {
+        headers,
+      });
       return handleResponse<Array<{ id: string; url: string }>>(response);
     } catch (error) {
       return handleFetchError(error);
@@ -136,9 +166,10 @@ class ApiClient {
 
   async createOrder(draftId: string): Promise<{ orderId: string }> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ draftId }),
       });
       return handleResponse<{ orderId: string }>(response);
@@ -149,7 +180,10 @@ class ApiClient {
 
   async getAllOrders(): Promise<Order[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/orders`);
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/orders`, {
+        headers,
+      });
       return handleResponse<Order[]>(response);
     } catch (error) {
       return handleFetchError(error);
@@ -158,8 +192,23 @@ class ApiClient {
 
   async getOrderById(orderId: string): Promise<OrderDetail> {
     try {
-      const response = await fetch(`${this.baseUrl}/orders/${orderId}`);
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/orders/${orderId}`, {
+        headers,
+      });
       return handleResponse<OrderDetail>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getCurrentUser(): Promise<{ id: string; clerkUserId: string; role: 'admin' | 'customer' }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/user/me`, {
+        headers,
+      });
+      return handleResponse<{ id: string; clerkUserId: string; role: 'admin' | 'customer' }>(response);
     } catch (error) {
       return handleFetchError(error);
     }

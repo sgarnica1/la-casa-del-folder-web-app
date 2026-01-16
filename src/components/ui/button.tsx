@@ -40,11 +40,14 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => {
+    // Filter out redirectUrl prop that Clerk may pass down
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { redirectUrl: _redirectUrl, ...domProps } = props as Record<string, unknown>;
     return (
       <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        {...props}
+        {...domProps}
       />
     )
   }
