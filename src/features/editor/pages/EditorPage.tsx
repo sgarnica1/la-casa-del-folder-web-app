@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from '@/components/ui';
+import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
+import { useToast } from '@/hooks/useToast';
 import type { Draft, Layout, LayoutItem } from '@/types';
 
 export function EditorPage() {
@@ -13,7 +15,7 @@ export function EditorPage() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const autoAssignRef = useRef(false);
 
@@ -40,14 +42,14 @@ export function EditorPage() {
           addImages(images);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load draft');
+        toast.error(err);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [draftId, addImages, uploadedImages.length]);
+  }, [draftId, addImages, uploadedImages.length, toast]);
 
   useEffect(() => {
     if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading) return;
@@ -104,14 +106,14 @@ export function EditorPage() {
         setDraft(updatedDraft);
       } catch (err) {
         console.error('Failed to auto-assign images:', err);
-        setError(err instanceof Error ? err.message : 'Failed to auto-assign images');
+        toast.error(err);
       } finally {
         setIsSaving(false);
       }
     };
 
     autoAssign();
-  }, [draft, layout, uploadedImages, draftId, isLoading]);
+  }, [draft, layout, uploadedImages, draftId, isLoading, toast]);
 
   const getImageForSlot = (slotId: string): string | null => {
     if (!draft) return null;
@@ -123,7 +125,6 @@ export function EditorPage() {
     if (!draft || !draftId) return;
 
     setIsSaving(true);
-    setError(null);
 
     try {
       const existingItemIndex = draft.layoutItems.findIndex((li) => li.slotId === slotId);
@@ -153,8 +154,9 @@ export function EditorPage() {
       });
       setDraft(updatedDraft);
       setSelectedSlotId(null);
+      toast.success('Imagen asignada exitosamente');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to assign image');
+      toast.error(err);
     } finally {
       setIsSaving(false);
     }
@@ -166,165 +168,204 @@ export function EditorPage() {
     }
   };
 
+  const handleBack = () => {
+    if (draftId) {
+      navigate(`/draft/${draftId}/upload`);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p>Cargando...</p>
-      </div>
+      <>
+        <DraftEditorHeader />
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-4 w-96" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-32 w-full" />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-24 w-full" />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
   if (!draft || !layout) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p>Error: No se pudo cargar el borrador</p>
-      </div>
+      <>
+        <DraftEditorHeader />
+        <div className="container mx-auto px-4 py-8">
+          <p>Error: No se pudo cargar el borrador</p>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold">Asignar Imágenes</h2>
-          <p className="text-muted-foreground mt-2">
-            Las imágenes se asignan automáticamente. Haz clic en una ranura para cambiar su imagen.
-          </p>
-        </div>
-
-        {error && (
-          <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-            {error}
+    <>
+      <DraftEditorHeader
+        onBack={handleBack}
+        onContinue={handleContinue}
+        continueLabel={isSaving ? 'Guardando...' : 'Continuar a Vista Previa'}
+        continueDisabled={isSaving}
+      />
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-3xl font-bold">Asignar Imágenes</h2>
+            <p className="text-muted-foreground mt-2">
+              Las imágenes se asignan automáticamente. Haz clic en una ranura para cambiar su imagen.
+            </p>
           </div>
-        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ranuras de Diseño</CardTitle>
-              <CardDescription>
-                Haz clic en una ranura para asignar una imagen
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {layout.slots.map((slot) => {
-                const assignedImageId = getImageForSlot(slot.id);
-                const assignedImage = assignedImageId
-                  ? uploadedImages.find((img) => img.id === assignedImageId)
-                  : null;
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Ranuras de Diseño</CardTitle>
+                <CardDescription>
+                  Haz clic en una ranura para asignar una imagen
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {layout.slots.map((slot) => {
+                  const assignedImageId = getImageForSlot(slot.id);
+                  const assignedImage = assignedImageId
+                    ? uploadedImages.find((img) => img.id === assignedImageId)
+                    : null;
 
-                return (
-                  <div
-                    key={slot.id}
-                    className={`border-2 rounded-md p-4 cursor-pointer transition-colors ${selectedSlotId === slot.id
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`border-2 rounded-md p-4 cursor-pointer transition-colors ${selectedSlotId === slot.id
                         ? 'border-primary bg-primary/10'
                         : 'border-border hover:border-primary/50'
-                      }`}
-                    onClick={() => setSelectedSlotId(slot.id)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{slot.name}</span>
-                      {slot.required && (
-                        <span className="text-xs text-muted-foreground">Requerida</span>
+                        }`}
+                      onClick={() => setSelectedSlotId(slot.id)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">{slot.name}</span>
+                        {slot.required && (
+                          <span className="text-xs text-muted-foreground">Requerida</span>
+                        )}
+                      </div>
+                      {assignedImage ? (
+                        <div className="relative">
+                          <img
+                            src={assignedImage.url}
+                            alt={slot.name}
+                            className="w-full h-32 object-cover rounded-md"
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAssignImage(slot.id, null);
+                            }}
+                            className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1"
+                            disabled={isSaving}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center text-muted-foreground">
+                          Sin imagen
+                        </div>
                       )}
                     </div>
-                    {assignedImage ? (
-                      <div className="relative">
-                        <img
-                          src={assignedImage.url}
-                          alt={slot.name}
-                          className="w-full h-32 object-cover rounded-md"
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAssignImage(slot.id, null);
-                          }}
-                          className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1"
-                          disabled={isSaving}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center text-muted-foreground">
-                        Sin imagen
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+                  );
+                })}
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Imágenes Disponibles</CardTitle>
-              <CardDescription>
-                {selectedSlotId
-                  ? 'Selecciona una imagen para asignar a esta ranura'
-                  : 'Haz clic en una ranura y luego en una imagen para asignarla'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {uploadedImages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No hay imágenes disponibles. Vuelve a la página de subida para agregar imágenes.
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  {uploadedImages.map((image, index) => {
-                    const assignedSlotId = draft.layoutItems.find((item) => item.imageId === image.id)?.slotId;
-                    const isSelectedForSlot = selectedSlotId && getImageForSlot(selectedSlotId) === image.id;
-                    return (
-                      <div
-                        key={image.id}
-                        className={`relative border-2 rounded-md overflow-hidden transition-colors ${isSelectedForSlot
+            <Card>
+              <CardHeader>
+                <CardTitle>Imágenes Disponibles</CardTitle>
+                <CardDescription>
+                  {selectedSlotId
+                    ? 'Selecciona una imagen para asignar a esta ranura'
+                    : 'Haz clic en una ranura y luego en una imagen para asignarla'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {uploadedImages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No hay imágenes disponibles. Vuelve a la página de subida para agregar imágenes.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {uploadedImages.map((image, index) => {
+                      const assignedSlotId = draft.layoutItems.find((item) => item.imageId === image.id)?.slotId;
+                      const isSelectedForSlot = selectedSlotId && getImageForSlot(selectedSlotId) === image.id;
+                      return (
+                        <div
+                          key={image.id}
+                          className={`relative border-2 rounded-md overflow-hidden transition-colors ${isSelectedForSlot
                             ? 'border-primary bg-primary/10 cursor-pointer'
                             : assignedSlotId
                               ? 'border-muted-foreground/30 bg-muted/30 cursor-pointer'
                               : selectedSlotId
                                 ? 'border-border hover:border-primary/50 cursor-pointer'
                                 : 'border-border opacity-60'
-                          }`}
-                        onClick={() => {
-                          if (selectedSlotId && !isSelectedForSlot) {
-                            handleAssignImage(selectedSlotId, image.id);
-                          }
-                        }}
-                      >
-                        <img
-                          src={image.url}
-                          alt={`Image ${index + 1}`}
-                          className="w-full h-24 object-cover"
-                        />
-                        {assignedSlotId && (
-                          <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                            {layout.slots.find((s) => s.id === assignedSlotId)?.name || assignedSlotId}
-                          </div>
-                        )}
-                        {isSelectedForSlot && (
-                          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                            <span className="text-xs font-medium text-primary-foreground">
-                              Asignada
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <Button onClick={handleContinue} disabled={isSaving} size="lg">
-            Continuar a Vista Previa
-          </Button>
+                            }`}
+                          onClick={() => {
+                            if (selectedSlotId && !isSelectedForSlot) {
+                              handleAssignImage(selectedSlotId, image.id);
+                            }
+                          }}
+                        >
+                          <img
+                            src={image.url}
+                            alt={`Image ${index + 1}`}
+                            className="w-full h-24 object-cover"
+                          />
+                          {assignedSlotId && (
+                            <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
+                              {layout.slots.find((s) => s.id === assignedSlotId)?.name || assignedSlotId}
+                            </div>
+                          )}
+                          {isSelectedForSlot && (
+                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                              <span className="text-xs font-medium text-primary-foreground">
+                                Asignada
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

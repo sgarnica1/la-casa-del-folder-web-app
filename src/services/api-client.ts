@@ -54,9 +54,15 @@ class ApiClient {
     const headers: HeadersInit = {};
 
     if (this.getToken) {
-      const token = await this.getToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      try {
+        const token = await this.getToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        } else {
+          console.warn('[ApiClient] No token available');
+        }
+      } catch (error) {
+        console.error('[ApiClient] Error getting token:', error);
       }
     }
 
@@ -78,13 +84,23 @@ class ApiClient {
   async createDraft(productId: string, templateId: string): Promise<Draft> {
     try {
       const headers = await this.getAuthHeaders();
+      const hasAuth = !!headers['Authorization'];
+      console.log('[ApiClient] Creating draft', { hasAuth, productId, templateId });
+      
+      if (!hasAuth) {
+        console.warn('[ApiClient] No authorization token available');
+      }
+      
       const response = await fetch(`${this.baseUrl}/drafts`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId, templateId }),
       });
+      
+      console.log('[ApiClient] Draft creation response:', response.status, response.statusText);
       return handleResponse<Draft>(response);
     } catch (error) {
+      console.error('[ApiClient] Error in createDraft:', error);
       return handleFetchError(error);
     }
   }

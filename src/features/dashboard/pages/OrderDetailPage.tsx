@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiClient, ApiError } from '@/services/api-client';
+import { Skeleton } from '@/components/ui';
+import { apiClient } from '@/services/api-client';
+import { useToast } from '@/hooks/useToast';
 import type { OrderDetail, DesignSnapshotLayoutItem, DesignSnapshotImage } from '@/types';
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [imageMap, setImageMap] = useState<Map<string, string>>(new Map());
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const toast = useToast();
 
   useEffect(() => {
     if (!id) return;
 
     const loadOrder = async () => {
+      setIsLoading(true);
       try {
         const data = await apiClient.getOrderById(id);
         setOrder(data);
@@ -36,27 +40,34 @@ export function OrderDetailPage() {
         });
         setImageMap(imageMap);
       } catch (err) {
-        if (err instanceof ApiError) {
-          setError(`Error ${err.status}: ${err.message}`);
-        } else {
-          setError(err instanceof Error ? err.message : 'Failed to load order');
-        }
+        toast.error(err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadOrder();
-  }, [id]);
+  }, [id, toast]);
 
-  if (error) {
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Link to="/dashboard/orders" className="text-sm text-muted-foreground hover:underline mb-4 block">
           ← Back to Orders
         </Link>
         <h1 className="text-2xl font-bold mb-4">Order Details</h1>
-        <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-          {error}
-        </div>
+        <p className="text-muted-foreground">No se pudo cargar el pedido</p>
       </div>
     );
   }

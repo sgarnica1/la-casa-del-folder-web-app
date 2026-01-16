@@ -1,35 +1,63 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient, ApiError } from '@/services/api-client';
+import { Skeleton } from '@/components/ui';
+import { apiClient } from '@/services/api-client';
+import { useToast } from '@/hooks/useToast';
 import type { Order } from '@/types';
 
 export function OrdersListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const toast = useToast();
+  const hasLoadedRef = useRef(false);
+  const isLoadingRef = useRef(false);
 
   useEffect(() => {
+    if (hasLoadedRef.current || isLoadingRef.current) {
+      return;
+    }
+
+    isLoadingRef.current = true;
+    let cancelled = false;
+
     const loadOrders = async () => {
+      setIsLoading(true);
       try {
         const data = await apiClient.getAllOrders();
-        setOrders(data);
+        if (!cancelled) {
+          setOrders(data);
+          hasLoadedRef.current = true;
+        }
       } catch (err) {
-        if (err instanceof ApiError) {
-          setError(`Error ${err.status}: ${err.message}`);
-        } else {
-          setError(err instanceof Error ? err.message : 'Failed to load orders');
+        if (!cancelled) {
+          toast.error(err);
+          hasLoadedRef.current = true;
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+          isLoadingRef.current = false;
         }
       }
     };
 
     loadOrders();
+
+    return () => {
+      cancelled = true;
+      isLoadingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (error) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-4">Admin Orders Dashboard</h1>
-        <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-          {error}
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 w-full" />
+          ))}
         </div>
       </div>
     );
