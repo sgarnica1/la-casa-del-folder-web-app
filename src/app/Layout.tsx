@@ -31,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
         <main className="container mx-auto px-4 py-8">
           {children}
         </main>
-        <Toaster position="top-right" richColors />
+        <Toaster position="bottom-right" richColors />
       </div>
     </UploadedImagesProvider>
   );

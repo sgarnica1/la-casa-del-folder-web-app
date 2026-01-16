@@ -13,7 +13,7 @@ export function DraftEditorLayout({ children }: DraftEditorLayoutProps) {
   return (
     <UploadedImagesProvider>
       {children}
-      <Toaster position="top-right" richColors />
+      <Toaster position="bottom-right" richColors />
     </UploadedImagesProvider>
   );
 }

@@ -23,7 +23,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           </div>
         </div>
       </footer>
-      <Toaster position="top-right" richColors />
+      <Toaster position="bottom-right" richColors />
     </div>
   );
 }

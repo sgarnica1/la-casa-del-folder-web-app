@@ -148,7 +148,7 @@ export function PreviewPage() {
               Una vez bloqueado, no podrás editar este diseño. ¿Estás seguro?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className='mt-6'>
             <Button variant="outline" onClick={() => setShowLockDialog(false)} disabled={isLocking}>
               Cancelar
             </Button>

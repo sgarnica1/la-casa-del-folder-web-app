@@ -179,107 +179,100 @@ export function UploadPage() {
         continueDisabled={!hasMinimumImages || isUploading}
       />
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-3xl font-bold">Subir imágenes</h2>
-            <p className="text-muted-foreground mt-2">
-              Selecciona <strong>{requiredCount} imágenes</strong> para empezar
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Puedes cambiarlas más adelante
-            </p>
-          </div>
+        {layout && (() => {
+          const totalImages = uploadedImages.length + uploadingImages.size;
+          const hasAnyImages = totalImages > 0;
+          const maxImages = 20;
 
-          {layout && (() => {
-            // Sort slots by extracting number from name (Slot 1, Slot 2, etc.)
-            const sortedSlots = [...layout.slots].sort((a, b) => {
-              // Check for portada/cover first
-              const aIsCover = a.name.toLowerCase().includes('portada') || a.name.toLowerCase().includes('cover');
-              const bIsCover = b.name.toLowerCase().includes('portada') || b.name.toLowerCase().includes('cover');
-
-              if (aIsCover && !bIsCover) return -1;
-              if (!aIsCover && bIsCover) return 1;
-
-              // Extract numbers from slot names (Slot 1, Slot 10, mes 1, month 1, etc.)
-              const aMatch = a.name.match(/(?:slot|mes|month)\s*(\d+)/i);
-              const bMatch = b.name.match(/(?:slot|mes|month)\s*(\d+)/i);
-
-              if (aMatch && bMatch) {
-                return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
-              }
-
-              // Fallback to string comparison
-              return a.name.localeCompare(b.name);
-            });
-
-            const coverSlot = sortedSlots.find(s =>
-              s.name.toLowerCase().includes('portada') || s.name.toLowerCase().includes('cover')
-            );
-            const monthSlots = sortedSlots.filter(s =>
-              !s.name.toLowerCase().includes('portada') &&
-              !s.name.toLowerCase().includes('cover')
-            );
-
-            const totalImages = uploadedImages.length + uploadingImages.size;
-            const hasAnyImages = totalImages > 0;
-
-            // If no images uploaded, show only add button
-            if (!hasAnyImages) {
-              return (
-                <div className="flex items-center justify-center py-12">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById('image-upload-input') as HTMLInputElement;
-                      input?.click();
-                    }}
-                    disabled={isUploading}
-                    size="lg"
-                    className="bg-gray-800 hover:bg-gray-900 text-white"
-                  >
-                    Seleccionar imágenes
-                  </Button>
+          // If no images uploaded, show centered empty state
+          if (!hasAnyImages) {
+            return (
+              <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
+                <div className="text-center space-y-2">
+                  <h2 className="text-3xl font-bold">Subir imágenes</h2>
+                  <p className="text-muted-foreground">
+                    Selecciona <strong>{requiredCount} imágenes</strong> para empezar
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Puedes cambiarlas más adelante
+                  </p>
                 </div>
-              );
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('image-upload-input') as HTMLInputElement;
+                    input?.click();
+                  }}
+                  disabled={isUploading}
+                  size="lg"
+                  className="bg-gray-800 hover:bg-gray-900 text-white"
+                >
+                  Seleccionar imágenes
+                </Button>
+              </div>
+            );
+          }
+
+          // Sort slots by extracting number from name (Slot 1, Slot 2, etc.)
+          const sortedSlots = [...layout.slots].sort((a, b) => {
+            // Check for portada/cover first
+            const aIsCover = a.name.toLowerCase().includes('portada') || a.name.toLowerCase().includes('cover');
+            const bIsCover = b.name.toLowerCase().includes('portada') || b.name.toLowerCase().includes('cover');
+
+            if (aIsCover && !bIsCover) return -1;
+            if (!aIsCover && bIsCover) return 1;
+
+            // Extract numbers from slot names (Slot 1, Slot 10, mes 1, month 1, etc.)
+            const aMatch = a.name.match(/(?:slot|mes|month)\s*(\d+)/i);
+            const bMatch = b.name.match(/(?:slot|mes|month)\s*(\d+)/i);
+
+            if (aMatch && bMatch) {
+              return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
             }
 
-            // Show grid with images and empty slots
-            return (
-              <div className="space-y-6">
-                {coverSlot && (
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Portada
-                    </div>
-                    <div className="relative w-full aspect-[3/4] rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30">
-                      {uploadedImages.length > 0 ? (
-                        <img
-                          src={uploadedImages[0].url}
-                          alt="Cover"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : uploadingImages.has(0) ? (
-                        <>
-                          <img
-                            src={uploadingImages.get(0)!.previewUrl}
-                            alt="Uploading cover"
-                            className="w-full h-full object-cover opacity-70"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                            <Loading size="sm" className="text-white" />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                          Agregar foto para Portada
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+            // Fallback to string comparison
+            return a.name.localeCompare(b.name);
+          });
 
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-                  {/* Add More button placeholder at the beginning */}
+          const coverSlot = sortedSlots.find(s =>
+            s.name.toLowerCase().includes('portada') || s.name.toLowerCase().includes('cover')
+          );
+
+          // Display up to maxImages (20) images
+          const imagesToShow = uploadedImages.slice(0, maxImages);
+          const uploadingImagesArray = Array.from(uploadingImages.entries())
+            .filter(([index]) => index < maxImages);
+
+          return (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-3xl font-bold">Subir imágenes</h2>
+                <p className="text-muted-foreground mt-2">
+                  Selecciona <strong>{requiredCount} imágenes</strong> para empezar
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Puedes cambiarlas más adelante
+                </p>
+              </div>
+
+              {coverSlot && uploadedImages.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Portada
+                  </div>
+                  <div className="relative w-full aspect-[3/4] rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30">
+                    <img
+                      src={uploadedImages[0].url}
+                      alt="Cover"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                {/* Add More button placeholder at the beginning */}
+                {totalImages < maxImages && (
                   <button
                     type="button"
                     onClick={() => {
@@ -291,44 +284,44 @@ export function UploadPage() {
                   >
                     <Plus className="h-8 w-8 text-muted-foreground" />
                   </button>
+                )}
 
-                  {monthSlots.map((slot, index) => {
-                    const imageIndex = coverSlot ? index + 1 : index;
-                    const uploadedImage = uploadedImages[imageIndex] || null;
-                    const uploadingImage = uploadingImages.get(imageIndex);
+                {/* Display all uploaded images (up to maxImages) */}
+                {imagesToShow.slice(coverSlot ? 1 : 0).map((image, index) => {
+                  const displayIndex = coverSlot ? index + 1 : index;
+                  return (
+                    <div key={image.id} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-border bg-muted/30 shadow-sm">
+                      <img
+                        src={image.url}
+                        alt={`Image ${displayIndex + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  );
+                })}
 
-                    return (
-                      <div key={slot.id} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm">
-                        {uploadedImage ? (
-                          <img
-                            src={uploadedImage.url}
-                            alt={slot.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : uploadingImage ? (
-                          <>
-                            <img
-                              src={uploadingImage.previewUrl}
-                              alt={`Uploading ${slot.name}`}
-                              className="w-full h-full object-cover opacity-70"
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                              <Loading size="sm" className="text-white" />
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs p-2 text-center">
-                            Agregar foto para {slot.name}
-                          </div>
-                        )}
+                {/* Display uploading images */}
+                {uploadingImagesArray.map(([index, uploadingImage]) => {
+                  // Skip cover slot (index 0) if cover exists
+                  if (coverSlot && index === 0) return null;
+
+                  return (
+                    <div key={`uploading-${index}`} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm">
+                      <img
+                        src={uploadingImage.previewUrl}
+                        alt={`Uploading ${index + 1}`}
+                        className="w-full h-full object-cover opacity-70"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <Loading size="sm" className="text-white" />
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })()}
-        </div>
+            </div>
+          );
+        })()}
       </div>
 
       <input
