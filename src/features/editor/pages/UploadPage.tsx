@@ -22,6 +22,8 @@ export function UploadPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState<Map<number, UploadingImage>>(new Map());
+  // Track upload order: maps upload position -> image ID (once uploaded)
+  const [uploadOrderMap, setUploadOrderMap] = useState<Map<number, string>>(new Map());
   const toast = useToast();
 
   useEffect(() => {
@@ -63,62 +65,109 @@ export function UploadPage() {
     const newUploadingImages = new Map<number, UploadingImage>();
     const currentSlotIndex = uploadedImages.length;
 
+    console.log('[UploadPage] Starting upload', {
+      fileCount: fileArray.length,
+      currentSlotIndex,
+      currentUploadedCount: uploadedImages.length,
+      uploadingSlots: Array.from(uploadingImages.keys()),
+    });
+
     fileArray.forEach((file, index) => {
       const previewUrl = URL.createObjectURL(file);
       const slotIndex = currentSlotIndex + index;
       newUploadingImages.set(slotIndex, { file, previewUrl, slotIndex });
+      console.log('[UploadPage] Created preview for slot', { slotIndex, fileName: file.name });
     });
 
-    setUploadingImages(newUploadingImages);
+    // Merge with existing uploading images
+    setUploadingImages((prev) => {
+      const merged = new Map(prev);
+      newUploadingImages.forEach((value, key) => {
+        merged.set(key, value);
+      });
+      console.log('[UploadPage] Total uploading slots after merge:', Array.from(merged.keys()));
+      return merged;
+    });
 
     const successfulImages: UploadedImage[] = [];
-    const errors: Array<{ fileName: string; error: string }> = [];
+    const errors: Array<{ fileName: string; error: string; slotIndex?: number }> = [];
+
+    // Upload images in batches to prevent Cloudinary timeouts
+    const BATCH_SIZE = 3; // Upload 3 images at a time
+    const BATCH_DELAY_MS = 500; // Wait 500ms between batches
 
     try {
-      const uploadPromises = fileArray.map(async (file, index) => {
-        const slotIndex = currentSlotIndex + index;
-        try {
-          const result = await apiClient.uploadImage(file);
-          const image: UploadedImage = { id: result.id, url: result.url };
-          successfulImages.push(image);
-          addImages([image]);
+      for (let i = 0; i < fileArray.length; i += BATCH_SIZE) {
+        const batch = fileArray.slice(i, i + BATCH_SIZE);
 
-          // Remove from uploading map
-          setUploadingImages((prev) => {
-            const updated = new Map(prev);
-            updated.delete(slotIndex);
-            return updated;
-          });
+        const batchPromises = batch.map(async (file, batchIndex) => {
+          const fileIndex = i + batchIndex;
+          const slotIndex = currentSlotIndex + fileIndex;
+          try {
+            console.log('[UploadPage] Starting upload for slot', { slotIndex, fileName: file.name });
+            const result = await apiClient.uploadImage(file);
+            const image: UploadedImage = { id: result.id, url: result.url };
+            console.log('[UploadPage] Upload successful for slot', { slotIndex, imageId: image.id });
+            successfulImages.push(image);
 
-          // Clean up preview URL
-          const uploadingImg = newUploadingImages.get(slotIndex);
-          if (uploadingImg) {
-            URL.revokeObjectURL(uploadingImg.previewUrl);
+            // Store upload order for positioning
+            setUploadOrderMap((prev) => {
+              const updated = new Map(prev);
+              updated.set(slotIndex, image.id);
+              console.log('[UploadPage] Updated upload order map', { slotIndex, imageId: image.id, map: Array.from(updated.entries()) });
+              return updated;
+            });
+            addImages([image]);
+
+            // Remove from uploading map
+            setUploadingImages((prev) => {
+              const updated = new Map(prev);
+              updated.delete(slotIndex);
+              console.log('[UploadPage] Removed slot from uploading map', { slotIndex, remainingSlots: Array.from(updated.keys()) });
+              return updated;
+            });
+
+            // Clean up preview URL
+            const uploadingImg = newUploadingImages.get(slotIndex);
+            if (uploadingImg) {
+              URL.revokeObjectURL(uploadingImg.previewUrl);
+            }
+
+            return { success: true, image, slotIndex };
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to upload image';
+            console.error('[UploadPage] Upload failed for slot', { slotIndex, fileName: file.name, error: errorMessage });
+            errors.push({ fileName: file.name, error: errorMessage, slotIndex });
+
+            // Keep in uploading map on error so user can see which one failed
+            // Only remove after some time or let user retry
+            setTimeout(() => {
+              setUploadingImages((prev) => {
+                const updated = new Map(prev);
+                updated.delete(slotIndex);
+                console.log('[UploadPage] Removed failed upload slot after timeout', { slotIndex });
+                return updated;
+              });
+            }, 5000);
+
+            // Clean up preview URL
+            const uploadingImg = newUploadingImages.get(slotIndex);
+            if (uploadingImg) {
+              URL.revokeObjectURL(uploadingImg.previewUrl);
+            }
+
+            return { success: false, error: errorMessage, slotIndex };
           }
+        });
 
-          return { success: true, image };
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : 'Failed to upload image';
-          errors.push({ fileName: file.name, error: errorMessage });
+        // Wait for current batch to complete
+        await Promise.allSettled(batchPromises);
 
-          // Remove from uploading map on error
-          setUploadingImages((prev) => {
-            const updated = new Map(prev);
-            updated.delete(slotIndex);
-            return updated;
-          });
-
-          // Clean up preview URL
-          const uploadingImg = newUploadingImages.get(slotIndex);
-          if (uploadingImg) {
-            URL.revokeObjectURL(uploadingImg.previewUrl);
-          }
-
-          return { success: false, error: errorMessage };
+        // Wait before starting next batch (except for the last batch)
+        if (i + BATCH_SIZE < fileArray.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
         }
-      });
-
-      await Promise.allSettled(uploadPromises);
+      }
 
       if (successfulImages.length > 0) {
         toast.success(
@@ -177,7 +226,18 @@ export function UploadPage() {
         onContinue={handleContinue}
         continueLabel="Continuar"
         continueDisabled={!hasMinimumImages || isUploading}
-      />
+      >
+        {layout && (
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium">
+              {uploadedImages.length} / {uploadedImages.length + uploadingImages.size} fotos subidas
+            </span>
+            <span className="ml-2">
+              Se requiere un mínimo de {requiredCount}
+            </span>
+          </div>
+        )}
+      </DraftEditorHeader>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {layout && (() => {
           const totalImages = uploadedImages.length + uploadingImages.size;
@@ -189,9 +249,9 @@ export function UploadPage() {
             return (
               <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold">Subir imágenes</h2>
+                  <h2 className="text-5xl mb-6">Subir imágenes</h2>
                   <p className="text-muted-foreground">
-                    Selecciona <strong>{requiredCount} imágenes</strong> para empezar
+                    Selecciona <strong>{requiredCount} imágenes</strong> para empezar.
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Puedes cambiarlas más adelante
@@ -213,40 +273,13 @@ export function UploadPage() {
             );
           }
 
-          // Sort slots by extracting number from name (Slot 1, Slot 2, etc.)
-          const sortedSlots = [...layout.slots].sort((a, b) => {
-            // Check for portada/cover first
-            const aIsCover = a.name.toLowerCase().includes('portada') || a.name.toLowerCase().includes('cover');
-            const bIsCover = b.name.toLowerCase().includes('portada') || b.name.toLowerCase().includes('cover');
-
-            if (aIsCover && !bIsCover) return -1;
-            if (!aIsCover && bIsCover) return 1;
-
-            // Extract numbers from slot names (Slot 1, Slot 10, mes 1, month 1, etc.)
-            const aMatch = a.name.match(/(?:slot|mes|month)\s*(\d+)/i);
-            const bMatch = b.name.match(/(?:slot|mes|month)\s*(\d+)/i);
-
-            if (aMatch && bMatch) {
-              return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
-            }
-
-            // Fallback to string comparison
-            return a.name.localeCompare(b.name);
-          });
-
-          const coverSlot = sortedSlots.find(s =>
-            s.name.toLowerCase().includes('portada') || s.name.toLowerCase().includes('cover')
-          );
-
           // Display up to maxImages (20) images
           const imagesToShow = uploadedImages.slice(0, maxImages);
-          const uploadingImagesArray = Array.from(uploadingImages.entries())
-            .filter(([index]) => index < maxImages);
 
           return (
             <div className="space-y-6">
               <div>
-                <h2 className="text-3xl font-bold">Subir imágenes</h2>
+                <h2 className="text-4xl font">Subir imágenes</h2>
                 <p className="text-muted-foreground mt-2">
                   Selecciona <strong>{requiredCount} imágenes</strong> para empezar
                 </p>
@@ -254,21 +287,6 @@ export function UploadPage() {
                   Puedes cambiarlas más adelante
                 </p>
               </div>
-
-              {coverSlot && uploadedImages.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Portada
-                  </div>
-                  <div className="relative w-full aspect-[3/4] rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30">
-                    <img
-                      src={uploadedImages[0].url}
-                      alt="Cover"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-              )}
 
               <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
                 {/* Add More button placeholder at the beginning */}
@@ -286,38 +304,105 @@ export function UploadPage() {
                   </button>
                 )}
 
-                {/* Display all uploaded images (up to maxImages) */}
-                {imagesToShow.slice(coverSlot ? 1 : 0).map((image, index) => {
-                  const displayIndex = coverSlot ? index + 1 : index;
-                  return (
-                    <div key={image.id} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-border bg-muted/30 shadow-sm">
-                      <img
-                        src={image.url}
-                        alt={`Image ${displayIndex + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  );
-                })}
+                {/* Display images maintaining their positions */}
+                {(() => {
+                  const startIndex = 0; // Include cover in grid
+                  const slots: Array<{ type: 'uploaded' | 'uploading'; image?: UploadedImage; uploadingImage?: UploadingImage; index: number }> = [];
 
-                {/* Display uploading images */}
-                {uploadingImagesArray.map(([index, uploadingImage]) => {
-                  // Skip cover slot (index 0) if cover exists
-                  if (coverSlot && index === 0) return null;
+                  // Create a map of uploaded images by their upload position
+                  const uploadedImagesBySlot = new Map<number, UploadedImage>();
+                  uploadOrderMap.forEach((imageId, uploadPosition) => {
+                    const image = imagesToShow.find((img) => img.id === imageId);
+                    if (image) {
+                      uploadedImagesBySlot.set(uploadPosition, image);
+                    }
+                  });
 
-                  return (
-                    <div key={`uploading-${index}`} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm">
-                      <img
-                        src={uploadingImage.previewUrl}
-                        alt={`Uploading ${index + 1}`}
-                        className="w-full h-full object-cover opacity-70"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <Loading size="sm" className="text-white" />
-                      </div>
-                    </div>
-                  );
-                })}
+                  // For images not yet in uploadOrderMap (from context), assign them to next available position
+                  let nextAvailablePosition = startIndex;
+                  imagesToShow.forEach((img) => {
+                    if (!Array.from(uploadOrderMap.values()).includes(img.id)) {
+                      while (uploadedImagesBySlot.has(nextAvailablePosition) || uploadingImages.has(nextAvailablePosition)) {
+                        nextAvailablePosition++;
+                      }
+                      uploadedImagesBySlot.set(nextAvailablePosition, img);
+                      nextAvailablePosition++;
+                    }
+                  });
+
+                  // Find the maximum index we need to display
+                  const maxUploadedIndex = uploadedImagesBySlot.size > 0
+                    ? Math.max(...Array.from(uploadedImagesBySlot.keys()))
+                    : -1;
+                  const maxUploadingIndex = uploadingImages.size > 0
+                    ? Math.max(...Array.from(uploadingImages.keys()))
+                    : -1;
+                  // Ensure we show all uploading images, even if they're beyond current uploaded count
+                  const maxIndex = Math.max(maxUploadedIndex, maxUploadingIndex, -1);
+
+                  console.log('[UploadPage] Rendering slots', {
+                    startIndex,
+                    maxUploadedIndex,
+                    maxUploadingIndex,
+                    maxIndex,
+                    uploadedSlots: Array.from(uploadedImagesBySlot.keys()),
+                    uploadingSlots: Array.from(uploadingImages.keys()),
+                  });
+
+                  // Create a set of all indices that should be displayed
+                  const indicesToDisplay = new Set<number>();
+                  uploadedImagesBySlot.forEach((_, index) => indicesToDisplay.add(index));
+                  uploadingImages.forEach((_, index) => indicesToDisplay.add(index));
+
+                  // Create array of all slots with their images in order
+                  const sortedIndices = Array.from(indicesToDisplay).sort((a, b) => a - b);
+                  sortedIndices.forEach((i) => {
+                    if (i >= startIndex && i < startIndex + maxImages) {
+                      const uploadedImg = uploadedImagesBySlot.get(i);
+                      const uploadingImg = uploadingImages.get(i);
+
+                      if (uploadedImg) {
+                        slots.push({ type: 'uploaded', image: uploadedImg, index: i });
+                      } else if (uploadingImg) {
+                        slots.push({ type: 'uploading', uploadingImage: uploadingImg, index: i });
+                      }
+                    }
+                  });
+
+                  console.log('[UploadPage] Final slots array', {
+                    slotCount: slots.length,
+                    slots: slots.map(s => ({ type: s.type, index: s.index })),
+                  });
+
+                  return slots.map((slot) => {
+                    if (slot.type === 'uploaded' && slot.image) {
+                      return (
+                        <div key={slot.image.id} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-border bg-muted/30 shadow-sm">
+                          <img
+                            src={slot.image.url}
+                            alt={`Image ${slot.index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                      );
+                    } else if (slot.type === 'uploading' && slot.uploadingImage) {
+                      return (
+                        <div key={`uploading-${slot.index}`} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm">
+                          <img
+                            src={slot.uploadingImage.previewUrl}
+                            alt={`Uploading ${slot.index + 1}`}
+                            className="w-full h-full object-cover opacity-70"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-white/20">
+                            <Loading size="sm" className="text-white border-blue-600" />
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  });
+                })()}
               </div>
             </div>
           );

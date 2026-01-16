@@ -40,18 +40,19 @@ function getMonthName(slotName: string): string {
 
 function sortSlots(slots: Array<{ id: string; name: string }>): Array<{ id: string; name: string }> {
   const sorted = [...slots].sort((a, b) => {
-    const aMatch = a.name.match(/mes\s*(\d+)/i) || a.name.match(/month\s*(\d+)/i);
-    const bMatch = b.name.match(/mes\s*(\d+)/i) || b.name.match(/month\s*(\d+)/i);
+    // Check for portada/cover first
+    const aIsCover = a.name.toLowerCase().includes('portada') || a.name.toLowerCase().includes('cover');
+    const bIsCover = b.name.toLowerCase().includes('portada') || b.name.toLowerCase().includes('cover');
+
+    if (aIsCover && !bIsCover) return -1;
+    if (!aIsCover && bIsCover) return 1;
+
+    // Extract numbers from slot names (Slot 1, Slot 10, mes 1, month 1, etc.)
+    const aMatch = a.name.match(/(?:slot|mes|month)\s*(\d+)/i);
+    const bMatch = b.name.match(/(?:slot|mes|month)\s*(\d+)/i);
 
     if (aMatch && bMatch) {
       return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
-    }
-
-    if (a.name.toLowerCase().includes('portada') || a.name.toLowerCase().includes('cover')) {
-      return -1;
-    }
-    if (b.name.toLowerCase().includes('portada') || b.name.toLowerCase().includes('cover')) {
-      return 1;
     }
 
     if (a.name.toLowerCase().includes('título') || a.name.toLowerCase().includes('title')) {
@@ -61,6 +62,7 @@ function sortSlots(slots: Array<{ id: string; name: string }>): Array<{ id: stri
       return 1;
     }
 
+    // Fallback to string comparison
     return a.name.localeCompare(b.name);
   });
 

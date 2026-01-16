@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from '@/components/ui';
+import { Skeleton } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
+import { CalendarEditor } from '@/components/product/CalendarEditor';
 import { apiClient } from '@/services/api-client';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
 import { useToast } from '@/hooks/useToast';
@@ -16,7 +17,6 @@ export function EditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const toast = useToast();
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const autoAssignRef = useRef(false);
 
   useEffect(() => {
@@ -26,22 +26,49 @@ export function EditorPage() {
 
     const loadData = async () => {
       try {
+        console.log('[EditorPage] Loading data for draft', { draftId });
         const [draftData, layoutData] = await Promise.all([
           apiClient.getDraft(draftId),
           apiClient.getLayout('calendar-template'),
         ]);
+
+        console.log('[EditorPage] Data loaded', {
+          draftId: draftData.id,
+          layoutItemsCount: draftData.layoutItems.length,
+          layoutSlotsCount: layoutData.slots.length,
+          layoutSlots: layoutData.slots.map(s => ({ id: s.id, name: s.name })),
+        });
+
         setDraft(draftData);
         setLayout(layoutData);
 
         const imageIds = draftData.layoutItems
           .map((item) => item.imageId)
-          .filter((id): id is string => id !== null && id !== undefined);
+          .filter((id): id is string => {
+            // Filter out null, undefined, empty strings, and validate UUID format
+            if (!id || typeof id !== 'string') return false;
+            // Basic UUID validation (8-4-4-4-12 hex format)
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const isValid = uuidRegex.test(id);
+            if (!isValid) {
+              console.warn('[EditorPage] Invalid UUID format', { imageId: id });
+            }
+            return isValid;
+          });
+
+        console.log('[EditorPage] Valid image IDs', {
+          count: imageIds.length,
+          imageIds,
+        });
 
         if (imageIds.length > 0 && uploadedImages.length === 0) {
+          console.log('[EditorPage] Fetching images by IDs');
           const images = await apiClient.getImagesByIds(imageIds);
+          console.log('[EditorPage] Images fetched', { count: images.length });
           addImages(images);
         }
       } catch (err) {
+        console.error('[EditorPage] Error loading data', err);
         toast.error(err);
       } finally {
         setIsLoading(false);
@@ -66,43 +93,67 @@ export function EditorPage() {
     autoAssignRef.current = true;
 
     const autoAssign = async () => {
-
+      // Sort slots properly: cover first, then by month number
       const sortedSlots = [...layout.slots].sort((a, b) => {
-        const aIndex = parseInt(a.id.replace('slot-', ''), 10);
-        const bIndex = parseInt(b.id.replace('slot-', ''), 10);
-        return aIndex - bIndex;
+        const aIsCover = a.name.toLowerCase().includes('portada') || a.name.toLowerCase().includes('cover');
+        const bIsCover = b.name.toLowerCase().includes('portada') || b.name.toLowerCase().includes('cover');
+
+        if (aIsCover && !bIsCover) return -1;
+        if (!aIsCover && bIsCover) return 1;
+
+        const aMatch = a.name.match(/(?:slot|mes|month)\s*(\d+)/i);
+        const bMatch = b.name.match(/(?:slot|mes|month)\s*(\d+)/i);
+
+        if (aMatch && bMatch) {
+          return parseInt(aMatch[1], 10) - parseInt(bMatch[1], 10);
+        }
+
+        return a.name.localeCompare(b.name);
       });
 
       const unassignedImages = uploadedImages.filter(
         (img) => !draft.layoutItems.some((item) => item.imageId === img.id)
       );
 
-      const updatedItems: LayoutItem[] = [...draft.layoutItems];
+      // Get slots that don't have images assigned yet
+      const unassignedSlots = sortedSlots.filter(
+        (slot) => !draft.layoutItems.some((item) => item.slotId === slot.id && item.imageId)
+      );
 
-      for (let i = 0; i < Math.min(unassignedImages.length, sortedSlots.length); i++) {
-        const slot = sortedSlots[i];
+      // Build updated items: keep existing items, update unassigned ones
+      const updatedItems: LayoutItem[] = draft.layoutItems.map((item) => ({ ...item }));
+
+      // Only assign to unassigned slots, in order
+      for (let i = 0; i < Math.min(unassignedImages.length, unassignedSlots.length); i++) {
+        const slot = unassignedSlots[i];
         const image = unassignedImages[i];
-        const existingItemIndex = updatedItems.findIndex((li) => li.slotId === slot.id);
 
-        if (existingItemIndex >= 0) {
-          updatedItems[existingItemIndex] = {
-            ...updatedItems[existingItemIndex],
-            imageId: image.id,
-          };
+        // Find existing layoutItem for this slot, or use a placeholder UUID structure
+        const existingItem = updatedItems.find((item) => item.slotId === slot.id);
+        if (existingItem) {
+          // Update existing item
+          existingItem.imageId = image.id;
         } else {
-          updatedItems.push({
-            id: `item-${Date.now()}-${i}`,
-            slotId: slot.id,
-            imageId: image.id,
-          });
+          // This shouldn't happen if draft was created correctly, but handle it
+          console.warn('[EditorPage] No existing layoutItem for slot', { slotId: slot.id });
+          // Use the slot ID to generate a deterministic UUID-like structure
+          // For now, skip items that don't exist in draft
         }
       }
+
+      console.log('[EditorPage] Auto-assigning images', {
+        unassignedImagesCount: unassignedImages.length,
+        unassignedSlotsCount: unassignedSlots.length,
+        updatedItemsCount: updatedItems.length,
+        updatedItems: updatedItems.map(item => ({ id: item.id, slotId: item.slotId, hasImageId: !!item.imageId })),
+      });
 
       try {
         setIsSaving(true);
         const updatedDraft = await apiClient.updateDraft(draftId, {
           layoutItems: updatedItems,
         });
+        console.log('[EditorPage] Auto-assign successful', { layoutItemsCount: updatedDraft.layoutItems.length });
         setDraft(updatedDraft);
       } catch (err) {
         console.error('Failed to auto-assign images:', err);
@@ -115,52 +166,6 @@ export function EditorPage() {
     autoAssign();
   }, [draft, layout, uploadedImages, draftId, isLoading, toast]);
 
-  const getImageForSlot = (slotId: string): string | null => {
-    if (!draft) return null;
-    const item = draft.layoutItems.find((li) => li.slotId === slotId);
-    return item?.imageId || null;
-  };
-
-  const handleAssignImage = async (slotId: string, imageId: string | null) => {
-    if (!draft || !draftId) return;
-
-    setIsSaving(true);
-
-    try {
-      const existingItemIndex = draft.layoutItems.findIndex((li) => li.slotId === slotId);
-      let updatedItems: LayoutItem[];
-
-      if (imageId === null) {
-        updatedItems = draft.layoutItems.filter((li) => li.slotId !== slotId);
-      } else if (existingItemIndex >= 0) {
-        updatedItems = [...draft.layoutItems];
-        updatedItems[existingItemIndex] = {
-          ...updatedItems[existingItemIndex],
-          imageId,
-        };
-      } else {
-        updatedItems = [
-          ...draft.layoutItems,
-          {
-            id: `item-${Date.now()}`,
-            slotId,
-            imageId,
-          },
-        ];
-      }
-
-      const updatedDraft = await apiClient.updateDraft(draftId, {
-        layoutItems: updatedItems,
-      });
-      setDraft(updatedDraft);
-      setSelectedSlotId(null);
-      toast.success('Imagen asignada exitosamente');
-    } catch (err) {
-      toast.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleContinue = () => {
     if (draftId) {
@@ -174,41 +179,74 @@ export function EditorPage() {
     }
   };
 
+  const handleSlotClick = () => {
+    // TODO: Implement image assignment functionality
+  };
+
+  const [titleValue, setTitleValue] = useState<string>('Título del calendario');
+  const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (draft?.title !== undefined) {
+      setTitleValue(draft.title || 'Título del calendario');
+    }
+  }, [draft?.title]);
+
+  useEffect(() => {
+    // Cleanup timeout on unmount
+    return () => {
+      if (titleSaveTimeoutRef.current) {
+        clearTimeout(titleSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleTitleChange = useCallback((newTitle: string) => {
+    if (!draft || !draftId) return;
+
+    setTitleValue(newTitle);
+
+    // Clear previous timeout
+    if (titleSaveTimeoutRef.current) {
+      clearTimeout(titleSaveTimeoutRef.current);
+    }
+
+    // Debounce the save operation
+    titleSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        setIsSaving(true);
+        const updatedDraft = await apiClient.updateDraft(draftId, {
+          title: newTitle || 'Título del calendario',
+        });
+        setDraft(updatedDraft);
+        console.log('[EditorPage] Title updated', { title: newTitle });
+      } catch (err) {
+        console.error('[EditorPage] Failed to update title', err);
+        toast.error(err);
+        // Revert on error
+        setTitleValue(draft.title || 'Título del calendario');
+      } finally {
+        setIsSaving(false);
+      }
+    }, 500);
+  }, [draft, draftId, toast]);
+
   if (isLoading) {
     return (
       <>
         <DraftEditorHeader />
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <div className="space-y-6">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-4 w-96" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-4 w-64" />
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-32 w-full" />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-4 w-64" />
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <Skeleton key={i} className="h-24 w-full" />
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+        <div className="w-full bg-gray-50 min-h-screen">
+          <div className="container mx-auto px-4 py-8 max-w-5xl">
+            <div className="mb-6">
+              <Skeleton className="h-10 w-64 mb-2" />
+              <Skeleton className="h-4 w-96" />
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-8">
+              <div className="space-y-12">
+                <Skeleton className="h-96 w-full" />
+                <Skeleton className="h-96 w-full" />
+                <Skeleton className="h-96 w-full" />
+              </div>
             </div>
           </div>
         </div>
@@ -235,135 +273,23 @@ export function EditorPage() {
         continueLabel={isSaving ? 'Guardando...' : 'Continuar a Vista Previa'}
         continueDisabled={isSaving}
       />
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-3xl font-bold">Asignar Imágenes</h2>
-            <p className="text-muted-foreground mt-2">
-              Las imágenes se asignan automáticamente. Haz clic en una ranura para cambiar su imagen.
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-5xl">
+          <div className="mb-6">
+            <h2 className="text-3xl font-bold text-gray-900">Título del calendario</h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Haz clic en una imagen para cambiarla
             </p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Ranuras de Diseño</CardTitle>
-                <CardDescription>
-                  Haz clic en una ranura para asignar una imagen
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {layout.slots.map((slot) => {
-                  const assignedImageId = getImageForSlot(slot.id);
-                  const assignedImage = assignedImageId
-                    ? uploadedImages.find((img) => img.id === assignedImageId)
-                    : null;
-
-                  return (
-                    <div
-                      key={slot.id}
-                      className={`border-2 rounded-md p-4 cursor-pointer transition-colors ${selectedSlotId === slot.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50'
-                        }`}
-                      onClick={() => setSelectedSlotId(slot.id)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{slot.name}</span>
-                        {slot.required && (
-                          <span className="text-xs text-muted-foreground">Requerida</span>
-                        )}
-                      </div>
-                      {assignedImage ? (
-                        <div className="relative">
-                          <img
-                            src={assignedImage.url}
-                            alt={slot.name}
-                            className="w-full h-32 object-cover rounded-md"
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAssignImage(slot.id, null);
-                            }}
-                            className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1"
-                            disabled={isSaving}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center text-muted-foreground">
-                          Sin imagen
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Imágenes Disponibles</CardTitle>
-                <CardDescription>
-                  {selectedSlotId
-                    ? 'Selecciona una imagen para asignar a esta ranura'
-                    : 'Haz clic en una ranura y luego en una imagen para asignarla'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {uploadedImages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No hay imágenes disponibles. Vuelve a la página de subida para agregar imágenes.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {uploadedImages.map((image, index) => {
-                      const assignedSlotId = draft.layoutItems.find((item) => item.imageId === image.id)?.slotId;
-                      const isSelectedForSlot = selectedSlotId && getImageForSlot(selectedSlotId) === image.id;
-                      return (
-                        <div
-                          key={image.id}
-                          className={`relative border-2 rounded-md overflow-hidden transition-colors ${isSelectedForSlot
-                            ? 'border-primary bg-primary/10 cursor-pointer'
-                            : assignedSlotId
-                              ? 'border-muted-foreground/30 bg-muted/30 cursor-pointer'
-                              : selectedSlotId
-                                ? 'border-border hover:border-primary/50 cursor-pointer'
-                                : 'border-border opacity-60'
-                            }`}
-                          onClick={() => {
-                            if (selectedSlotId && !isSelectedForSlot) {
-                              handleAssignImage(selectedSlotId, image.id);
-                            }
-                          }}
-                        >
-                          <img
-                            src={image.url}
-                            alt={`Image ${index + 1}`}
-                            className="w-full h-24 object-cover"
-                          />
-                          {assignedSlotId && (
-                            <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                              {layout.slots.find((s) => s.id === assignedSlotId)?.name || assignedSlotId}
-                            </div>
-                          )}
-                          {isSelectedForSlot && (
-                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                              <span className="text-xs font-medium text-primary-foreground">
-                                Asignada
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <CalendarEditor
+            layout={layout}
+            layoutItems={draft.layoutItems}
+            images={uploadedImages}
+            year={2026}
+            title={titleValue}
+            onSlotClick={handleSlotClick}
+            onTitleChange={handleTitleChange}
+          />
         </div>
       </div>
     </>
