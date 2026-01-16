@@ -7,6 +7,8 @@ import { PreviewPage } from '@/features/editor/pages/PreviewPage';
 import { OrderConfirmationPage } from '@/features/order/pages/OrderConfirmationPage';
 import { OrdersListPage } from '@/features/dashboard/pages/OrdersListPage';
 import { OrderDetailPage } from '@/features/dashboard/pages/OrderDetailPage';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { NotFoundPage } from '@/components/NotFoundPage';
 
 function App() {
   return (
@@ -15,12 +17,13 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/product/calendar" replace />} />
           <Route path="/product/calendar" element={<ProductDetailPage />} />
-          <Route path="/draft/:draftId/upload" element={<UploadPage />} />
-          <Route path="/draft/:draftId/edit" element={<EditorPage />} />
-          <Route path="/draft/:draftId/preview" element={<PreviewPage />} />
-          <Route path="/draft/:draftId/confirm" element={<OrderConfirmationPage />} />
-          <Route path="/dashboard/orders" element={<OrdersListPage />} />
-          <Route path="/dashboard/orders/:id" element={<OrderDetailPage />} />
+          <Route path="/draft/:draftId/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+          <Route path="/draft/:draftId/edit" element={<ProtectedRoute requiredRole="customer"><EditorPage /></ProtectedRoute>} />
+          <Route path="/draft/:draftId/preview" element={<ProtectedRoute requiredRole="customer"><PreviewPage /></ProtectedRoute>} />
+          <Route path="/draft/:draftId/confirm" element={<ProtectedRoute requiredRole="customer"><OrderConfirmationPage /></ProtectedRoute>} />
+          <Route path="/dashboard/orders" element={<ProtectedRoute requiredRole="admin"><OrdersListPage /></ProtectedRoute>} />
+          <Route path="/dashboard/orders/:id" element={<ProtectedRoute requiredRole="admin"><OrderDetailPage /></ProtectedRoute>} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>
