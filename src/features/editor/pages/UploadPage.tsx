@@ -12,7 +12,9 @@ export function UploadPage() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<Array<{ fileName: string; error: string }>>([]);
 
   useEffect(() => {
     if (!draftId) return;
@@ -38,18 +40,47 @@ export function UploadPage() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    const fileArray = Array.from(files);
     setIsUploading(true);
     setError(null);
+    setUploadErrors([]);
+    setUploadProgress({ current: 0, total: fileArray.length });
+
+    const successfulImages: UploadedImage[] = [];
+    const errors: Array<{ fileName: string; error: string }> = [];
 
     try {
-      const uploadPromises = Array.from(files).map((file) => apiClient.uploadImage(file));
-      const results = await Promise.all(uploadPromises);
-      const newImages: UploadedImage[] = results.map((r) => ({ id: r.id, url: r.url }));
-      addImages(newImages);
+      const uploadPromises = fileArray.map(async (file) => {
+        try {
+          const result = await apiClient.uploadImage(file);
+          const image: UploadedImage = { id: result.id, url: result.url };
+          successfulImages.push(image);
+          addImages([image]);
+          setUploadProgress((prev) => prev ? { ...prev, current: prev.current + 1 } : null);
+          return { success: true, image };
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to upload image';
+          errors.push({ fileName: file.name, error: errorMessage });
+          setUploadProgress((prev) => prev ? { ...prev, current: prev.current + 1 } : null);
+          return { success: false, error: errorMessage };
+        }
+      });
+
+      await Promise.allSettled(uploadPromises);
+
+      if (errors.length > 0) {
+        setUploadErrors(errors);
+        if (successfulImages.length === 0) {
+          setError(`Failed to upload all ${fileArray.length} image${fileArray.length !== 1 ? 's' : ''}`);
+        } else {
+          setError(`${errors.length} of ${fileArray.length} image${fileArray.length !== 1 ? 's' : ''} failed to upload`);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload images');
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
       event.target.value = '';
     }
   };
@@ -81,9 +112,31 @@ export function UploadPage() {
           </p>
         </div>
 
+        {isUploading && uploadProgress && (
+          <div className="text-sm bg-primary/10 text-primary p-3 rounded-md">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              <span>Subiendo imágenes... {uploadProgress.current} of {uploadProgress.total}</span>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
             {error}
+          </div>
+        )}
+
+        {uploadErrors.length > 0 && (
+          <div className="text-sm bg-destructive/10 p-3 rounded-md space-y-1">
+            <p className="font-semibold text-destructive">Failed uploads:</p>
+            <ul className="list-disc list-inside space-y-1">
+              {uploadErrors.map((err, idx) => (
+                <li key={idx} className="text-destructive/80">
+                  <span className="font-medium">{err.fileName}:</span> {err.error}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

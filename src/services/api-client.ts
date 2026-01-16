@@ -1,4 +1,4 @@
-import type { Draft, Layout, Product } from '@/types';
+import type { Draft, Layout, Product, Order, OrderDetail } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -142,6 +142,24 @@ class ApiClient {
         body: JSON.stringify({ draftId }),
       });
       return handleResponse<{ orderId: string }>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getAllOrders(): Promise<Order[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/orders`);
+      return handleResponse<Order[]>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getOrderById(orderId: string): Promise<OrderDetail> {
+    try {
+      const response = await fetch(`${this.baseUrl}/orders/${orderId}`);
+      return handleResponse<OrderDetail>(response);
     } catch (error) {
       return handleFetchError(error);
     }
