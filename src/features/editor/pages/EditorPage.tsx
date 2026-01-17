@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { CalendarEditor } from '@/components/product/CalendarEditor';
@@ -285,16 +286,25 @@ export function EditorPage() {
     }
   }, [draft, draftId, addImages, toast]);
 
-  const [titleValue, setTitleValue] = useState<string>('Título del calendario');
+  const [titleValue, setTitleValue] = useState<string>('Título del borrador');
   const [isSaved, setIsSaved] = useState(false);
+  const [isEditingMainTitle, setIsEditingMainTitle] = useState(false);
   const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mainTitleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (draft?.title !== undefined) {
-      setTitleValue(draft.title || 'Título del calendario');
+      setTitleValue(draft.title || 'Título del borrador');
     }
   }, [draft?.title]);
+
+  useEffect(() => {
+    if (isEditingMainTitle && mainTitleInputRef.current) {
+      mainTitleInputRef.current.focus();
+      mainTitleInputRef.current.select();
+    }
+  }, [isEditingMainTitle]);
 
   useEffect(() => {
     // Cleanup timeouts on unmount
@@ -311,7 +321,8 @@ export function EditorPage() {
   const handleTitleChange = useCallback((newTitle: string) => {
     if (!draft || !draftId) return;
 
-    setTitleValue(newTitle);
+    const trimmedTitle = newTitle.length > 60 ? newTitle.substring(0, 60) : newTitle;
+    setTitleValue(trimmedTitle);
 
     // Clear previous timeout
     if (titleSaveTimeoutRef.current) {
@@ -322,7 +333,7 @@ export function EditorPage() {
     titleSaveTimeoutRef.current = setTimeout(async () => {
       try {
         setIsSaving(true);
-        const titleToSave = newTitle.trim() || undefined; // Save undefined if empty string
+        const titleToSave = trimmedTitle.trim() || undefined; // Save undefined if empty string
         const updatedDraft = await apiClient.updateDraft(draftId, {
           ...(titleToSave !== undefined && { title: titleToSave }),
         });
@@ -341,7 +352,7 @@ export function EditorPage() {
         console.error('[EditorPage] Failed to auto-save title', err);
         toast.error(err);
         // Revert on error
-        setTitleValue(draft.title || 'Título del calendario');
+        setTitleValue(draft.title || 'Título del borrador');
         setIsSaved(false);
       } finally {
         setIsSaving(false);
@@ -396,9 +407,39 @@ export function EditorPage() {
       <div className="w-full bg-gray-50 min-h-screen">
         <div className="container mx-auto px-4 py-8 max-w-5xl">
           <div className="mb-6">
-            <h2 className="text-3xl text-gray-900">{titleValue || 'Título del calendario'}</h2>
+            <div className="relative group inline-block">
+              {isEditingMainTitle ? (
+                <input
+                  ref={mainTitleInputRef}
+                  type="text"
+                  value={titleValue}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    if (newValue.length <= 60) {
+                      handleTitleChange(newValue);
+                    }
+                  }}
+                  onBlur={() => setIsEditingMainTitle(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setIsEditingMainTitle(false);
+                    }
+                  }}
+                  maxLength={60}
+                  className="text-3xl text-gray-900 break-all bg-transparent border-b-2 border-gray-400 outline-none focus:border-gray-600 transition-colors"
+                />
+              ) : (
+                <h2
+                  onClick={() => setIsEditingMainTitle(true)}
+                  className="text-3xl text-gray-900 break-all cursor-pointer hover:text-gray-700 transition-colors"
+                >
+                  {titleValue || 'Título del borrador'}
+                  <Pencil className="inline-block ml-2 h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </h2>
+              )}
+            </div>
             <p className="text-muted-foreground mt-2 text-sm">
-              Haz clic en una imagen para cambiarla
+              Haz clic en una imagen para cambiarla.
             </p>
           </div>
           <CalendarEditor

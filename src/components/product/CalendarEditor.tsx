@@ -1,3 +1,4 @@
+import { Pencil } from 'lucide-react';
 import type { Layout, LayoutItem } from '@/types';
 
 interface UploadedImage {
@@ -202,17 +203,26 @@ export function CalendarEditor({
             </div>
             <div className="text-center space-y-4">
               {!isLocked && onTitleChange ? (
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => onTitleChange(e.target.value)}
-                  className="text-4xl font text-gray-800 bg-transparent border border-transparent hover:border-gray-300 focus:border-gray-400 outline-none text-center w-full focus:ring-2 focus:ring-gray-300 rounded px-2 py-1 transition-colors"
-                  placeholder="Título del calendario"
-                />
+                <div className="relative group inline-block">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      if (newValue.length <= 60) {
+                        onTitleChange(newValue);
+                      }
+                    }}
+                    maxLength={60}
+                    className="lg:text-4xl text-2xl font text-gray-800 bg-transparent border border-transparent hover:border-gray-300 focus:border-gray-400 outline-none text-center w-full focus:ring-2 focus:ring-gray-300 rounded px-2 py-1 transition-colors break-all"
+                    placeholder=""
+                  />
+                  <Pencil className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
+                </div>
               ) : (
-                <div className="text-4xl font-bold text-gray-800">{title}</div>
+                <div className="lg:text-4xl text-2xl font-bold text-gray-800 break-all">{title}</div>
               )}
-              <div className="text-5xl font-bold text-gray-900">{year}</div>
+              <div className="lg:text-5xl text-3xl font-bold text-gray-900">{year}</div>
             </div>
           </div>
         </div>

@@ -136,7 +136,7 @@ export function PreviewPage() {
             layoutItems={draft.layoutItems}
             images={uploadedImages}
             year={2026}
-            title={draft.title || 'Título del calendario'}
+            title={draft.title || 'Título del borrador'}
             isLocked={true}
             layoutMode="grid"
           />

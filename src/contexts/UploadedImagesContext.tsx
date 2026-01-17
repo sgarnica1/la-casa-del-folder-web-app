@@ -17,7 +17,9 @@ export function UploadedImagesProvider({ children }: { children: ReactNode }) {
     setImages((prev) => {
       const existingIds = new Set(prev.map((img) => img.id));
       const uniqueNewImages = newImages.filter((img) => !existingIds.has(img.id));
-      return [...prev, ...uniqueNewImages];
+      const MAX_IMAGES = 20;
+      const combined = [...prev, ...uniqueNewImages];
+      return combined.slice(0, MAX_IMAGES);
     });
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
+import { toast as sonnerToast } from 'sonner';
 import { Button, Skeleton } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
@@ -59,6 +60,31 @@ export function UploadPage() {
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
+    const MAX_IMAGES = 20;
+    const currentImageCount = uploadedImages.length + uploadingImages.size;
+    const remainingSlots = MAX_IMAGES - currentImageCount;
+
+    if (remainingSlots <= 0) {
+      sonnerToast.error(`Ya has alcanzado el límite de ${MAX_IMAGES} imágenes.`);
+      event.target.value = '';
+      return;
+    }
+
+    if (fileArray.length > remainingSlots) {
+      sonnerToast.error(`Solo puedes subir ${remainingSlots} imagen${remainingSlots !== 1 ? 'es' : ''} más (máximo ${MAX_IMAGES} total).`);
+      event.target.value = '';
+      return;
+    }
+
+    const invalidFiles = fileArray.filter(file => !file.type.startsWith('image/'));
+    if (invalidFiles.length > 0) {
+      invalidFiles.forEach(() => {
+        sonnerToast.error(`Tipo de archivo inválido. Solo se permiten archivos de imagen.`);
+      });
+      event.target.value = '';
+      return;
+    }
+
     setIsUploading(true);
 
     // Create preview URLs and track uploading images
@@ -135,7 +161,17 @@ export function UploadPage() {
 
             return { success: true, image, slotIndex };
           } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to upload image';
+            let errorMessage = 'Error al subir la imagen';
+            if (err instanceof Error) {
+              const message = err.message.toLowerCase();
+              if (message.includes('tipo de archivo') || message.includes('invalid file') || message.includes('file type')) {
+                errorMessage = 'Tipo de archivo inválido. Solo se permiten archivos de imagen.';
+              } else if (message.includes('timeout')) {
+                errorMessage = 'Tiempo de espera agotado. Intenta nuevamente.';
+              } else {
+                errorMessage = err.message;
+              }
+            }
             console.error('[UploadPage] Upload failed for slot', { slotIndex, fileName: file.name, error: errorMessage });
             errors.push({ fileName: file.name, error: errorMessage, slotIndex });
 
@@ -227,16 +263,21 @@ export function UploadPage() {
         continueLabel="Continuar"
         continueDisabled={!hasMinimumImages || isUploading}
       >
-        {layout && (
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium">
-              {uploadedImages.length} / {uploadedImages.length + uploadingImages.size} fotos subidas
-            </span>
-            <span className="ml-2">
-              Se requiere un mínimo de {requiredCount}
-            </span>
-          </div>
-        )}
+        {layout && (() => {
+          const MAX_IMAGES = 20;
+          const totalUploaded = Math.min(uploadedImages.length, MAX_IMAGES);
+          const totalWithUploading = Math.min(uploadedImages.length + uploadingImages.size, MAX_IMAGES);
+          return (
+            <div className="flex flex-col text-sm text-muted-foreground">
+              <span className="font-medium">
+                {totalUploaded} / {totalWithUploading} fotos subidas
+              </span>
+              <span className="text-xs">
+                Mínimo {requiredCount} • Máximo {MAX_IMAGES}
+              </span>
+            </div>
+          );
+        })()}
       </DraftEditorHeader>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {layout && (() => {
@@ -273,7 +314,7 @@ export function UploadPage() {
             );
           }
 
-          // Display up to maxImages (20) images
+          // Display all uploaded images up to maxImages
           const imagesToShow = uploadedImages.slice(0, maxImages);
 
           return (
@@ -354,10 +395,10 @@ export function UploadPage() {
                   uploadedImagesBySlot.forEach((_, index) => indicesToDisplay.add(index));
                   uploadingImages.forEach((_, index) => indicesToDisplay.add(index));
 
-                  // Create array of all slots with their images in order
+                  // Create array of all slots with their images in order (up to maxImages)
                   const sortedIndices = Array.from(indicesToDisplay).sort((a, b) => a - b);
                   sortedIndices.forEach((i) => {
-                    if (i >= startIndex && i < startIndex + maxImages) {
+                    if (i >= startIndex && i < maxImages) {
                       const uploadedImg = uploadedImagesBySlot.get(i);
                       const uploadingImg = uploadingImages.get(i);
 

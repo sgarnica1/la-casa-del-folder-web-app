@@ -14,8 +14,9 @@ class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new ApiError(error.message || 'Request failed', response.status);
+    const errorData = await response.json().catch(() => ({ error: { message: response.statusText } }));
+    const errorMessage = errorData?.error?.message || errorData?.message || 'Request failed';
+    throw new ApiError(errorMessage, response.status);
   }
   return response.json();
 }
@@ -86,17 +87,17 @@ class ApiClient {
       const headers = await this.getAuthHeaders();
       const hasAuth = !!headers['Authorization'];
       console.log('[ApiClient] Creating draft', { hasAuth, productId, templateId });
-      
+
       if (!hasAuth) {
         console.warn('[ApiClient] No authorization token available');
       }
-      
+
       const response = await fetch(`${this.baseUrl}/drafts`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId, templateId }),
       });
-      
+
       console.log('[ApiClient] Draft creation response:', response.status, response.statusText);
       return handleResponse<Draft>(response);
     } catch (error) {
