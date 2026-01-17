@@ -178,7 +178,7 @@ export function EditorPage() {
 
   const handleContinue = () => {
     if (draftId) {
-      navigate(`/draft/${draftId}/preview`);
+      navigate(`/draft/${draftId}/confirm`);
     }
   };
 
@@ -388,7 +388,7 @@ export function EditorPage() {
       <DraftEditorHeader
         onBack={handleBack}
         onContinue={handleContinue}
-        continueLabel="Continuar a Vista Previa"
+        continueLabel="Continuar"
         continueDisabled={isSaving}
         isSaving={isSaving}
         isSaved={isSaved}

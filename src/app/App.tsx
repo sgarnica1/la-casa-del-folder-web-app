@@ -5,8 +5,10 @@ import { DraftEditorLayout } from '@/components/layout/DraftEditorLayout';
 import { ProductDetailPage } from '@/features/product/pages/ProductDetailPage';
 import { UploadPage } from '@/features/editor/pages/UploadPage';
 import { EditorPage } from '@/features/editor/pages/EditorPage';
-import { PreviewPage } from '@/features/editor/pages/PreviewPage';
 import { OrderConfirmationPage } from '@/features/order/pages/OrderConfirmationPage';
+import { CartPage } from '@/features/order/pages/CartPage';
+import { PaymentPage } from '@/features/order/pages/PaymentPage';
+import { PaymentConfirmedPage } from '@/features/order/pages/PaymentConfirmedPage';
 import { DashboardLoginPage } from '@/features/dashboard/pages/DashboardLoginPage';
 import { OrdersListPage } from '@/features/dashboard/pages/OrdersListPage';
 import { OrderDetailPage } from '@/features/dashboard/pages/OrderDetailPage';
@@ -48,16 +50,6 @@ function App() {
           }
         />
         <Route
-          path="/draft/:draftId/preview"
-          element={
-            <DraftEditorLayout>
-              <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
-                <PreviewPage />
-              </ProtectedRoute>
-            </DraftEditorLayout>
-          }
-        />
-        <Route
           path="/draft/:draftId/confirm"
           element={
             <DraftEditorLayout>
@@ -65,6 +57,30 @@ function App() {
                 <OrderConfirmationPage />
               </ProtectedRoute>
             </DraftEditorLayout>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <CartPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PaymentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/confirmed"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PaymentConfirmedPage />
+            </ProtectedRoute>
           }
         />
         <Route

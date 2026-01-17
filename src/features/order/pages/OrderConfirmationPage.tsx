@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from '@/components/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
@@ -10,7 +10,6 @@ export function OrderConfirmationPage() {
   const { draftId } = useParams<{ draftId: string }>();
   const navigate = useNavigate();
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const toast = useToast();
@@ -22,13 +21,6 @@ export function OrderConfirmationPage() {
       try {
         const draftData = await apiClient.getDraft(draftId);
         setDraft(draftData);
-
-        if (draftData.status === 'ordered') {
-          const existingOrderId = localStorage.getItem(`order-${draftId}`);
-          if (existingOrderId) {
-            setOrderId(existingOrderId);
-          }
-        }
       } catch (err) {
         toast.error(err);
       } finally {
@@ -41,23 +33,24 @@ export function OrderConfirmationPage() {
 
   const handleBack = () => {
     if (draftId) {
-      navigate(`/draft/${draftId}/preview`);
+      navigate(`/draft/${draftId}/edit`);
     }
   };
 
-  const handleConfirmOrder = async () => {
+  const handleAddToCart = async () => {
     if (!draftId) return;
 
     setIsCreatingOrder(true);
 
     try {
-      const result = await apiClient.createOrder(draftId);
-      setOrderId(result.orderId);
-      localStorage.setItem(`order-${draftId}`, result.orderId);
+      // Lock the draft (add to cart)
+      await apiClient.lockDraft(draftId);
+      const lockedDraft = await apiClient.getDraft(draftId);
+      setDraft(lockedDraft);
 
-      const updatedDraft = await apiClient.getDraft(draftId);
-      setDraft(updatedDraft);
-      toast.success('Pedido creado exitosamente');
+      // Navigate to cart with draftId
+      navigate(`/cart?draftId=${draftId}`);
+      toast.success('Agregado al carrito');
     } catch (err) {
       toast.error(err);
       setIsCreatingOrder(false);
@@ -98,50 +91,25 @@ export function OrderConfirmationPage() {
     );
   }
 
-  if (draft.status !== 'locked' && draft.status !== 'ordered') {
-    return (
-      <>
-        <DraftEditorHeader onBack={handleBack} />
-        <div className="container mx-auto px-4 py-8">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground">
-                El borrador debe estar bloqueado antes de crear una orden.
-              </p>
-              <Button
-                onClick={() => navigate(`/draft/${draftId}/preview`)}
-                className="mt-4"
-              >
-                Ir a Vista Previa
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
-  const hasOrder = orderId || draft.status === 'ordered';
+  const isInCart = draft.status === 'locked' || draft.status === 'ordered';
 
   return (
     <>
       <DraftEditorHeader
         onBack={handleBack}
-        onContinue={!hasOrder ? handleConfirmOrder : undefined}
-        continueLabel={isCreatingOrder ? 'Creando Pedido...' : 'Confirmar Pedido'}
-        continueDisabled={isCreatingOrder}
+        onContinue={!isInCart ? handleAddToCart : undefined}
+        continueLabel={isCreatingOrder ? 'Agregando...' : 'Agregar al Carrito'}
+        continueDisabled={isCreatingOrder || isInCart}
         backDisabled={isCreatingOrder}
       />
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
           <div>
-            <h2 className="text-4xl font-bold">
-              {hasOrder ? '¡Pedido Confirmado!' : 'Confirmar Pedido'}
-            </h2>
+            <h2 className="text-4xl font-bold">Detalles del Pedido</h2>
             <p className="text-muted-foreground mt-2">
-              {hasOrder
-                ? 'Tu pedido ha sido procesado exitosamente'
-                : 'Confirma tu pedido para continuar'}
+              {isInCart
+                ? 'Este artículo ya está en tu carrito'
+                : 'Revisa los detalles antes de agregar al carrito'}
             </p>
           </div>
 
@@ -149,22 +117,25 @@ export function OrderConfirmationPage() {
             <CardHeader>
               <CardTitle>Detalles del Pedido</CardTitle>
               <CardDescription>
-                {hasOrder ? 'Información de tu pedido' : 'Revisa los detalles antes de confirmar'}
+                {isInCart ? 'Información de tu pedido' : 'Revisa los detalles antes de agregar al carrito'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {hasOrder && orderId && (
-                <div>
-                  <p className="text-sm text-muted-foreground">ID de Pedido</p>
-                  <p className="font-mono text-lg font-semibold">{orderId}</p>
-                </div>
-              )}
+              <div>
+                <p className="text-sm text-muted-foreground">Producto</p>
+                <p className="font-medium">Calendario Personalizado</p>
+              </div>
 
               <div>
                 <p className="text-sm text-muted-foreground">Estado</p>
                 <p className="font-medium">
-                  {draft.status === 'locked' ? 'Bloqueado' : 'Ordenado'}
+                  {draft.status === 'locked' ? 'En carrito' : 'Borrador'}
                 </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Precio</p>
+                <p className="text-2xl font-bold">$500.00</p>
               </div>
 
               <div>
@@ -176,11 +147,11 @@ export function OrderConfirmationPage() {
             </CardContent>
           </Card>
 
-          {hasOrder && (
+          {isInCart && (
             <Card>
               <CardContent className="pt-6">
                 <p className="text-center text-muted-foreground">
-                  Gracias por tu pedido. Te contactaremos pronto con más detalles.
+                  Este artículo ya está en tu carrito. Puedes continuar al pago desde la página del carrito.
                 </p>
               </CardContent>
             </Card>
