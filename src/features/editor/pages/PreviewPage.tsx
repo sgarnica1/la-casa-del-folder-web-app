@@ -17,7 +17,7 @@ import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
 import { useToast } from '@/hooks/useToast';
-import { CalendarPreview } from '@/components/product/CalendarPreview';
+import { CalendarEditor } from '@/components/product/CalendarEditor';
 import type { Draft, Layout } from '@/types';
 
 export function PreviewPage() {
@@ -131,11 +131,14 @@ export function PreviewPage() {
             </p>
           </div>
 
-          <CalendarPreview
+          <CalendarEditor
             layout={layout}
             layoutItems={draft.layoutItems}
             images={uploadedImages}
-            isLocked={false}
+            year={2026}
+            title={draft.title || 'Título del calendario'}
+            isLocked={true}
+            layoutMode="grid"
           />
         </div>
       </div>

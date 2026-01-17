@@ -16,8 +16,12 @@ export function EditorPage() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingSlots, setUploadingSlots] = useState<Map<string, { previewUrl: string }>>(new Map());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentReplacingSlotId = useRef<string | null>(null);
   const toast = useToast();
   const autoAssignRef = useRef(false);
+  const isReplacingImageRef = useRef(false);
 
   useEffect(() => {
     if (!draftId) return;
@@ -79,7 +83,12 @@ export function EditorPage() {
   }, [draftId, addImages, uploadedImages.length, toast]);
 
   useEffect(() => {
-    if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading) return;
+    if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading || isReplacingImageRef.current) {
+      if (isReplacingImageRef.current) {
+        console.log('[EditorPage] Skipping auto-assign - image replacement in progress');
+      }
+      return;
+    }
 
     const hasUnassignedImages = uploadedImages.some(
       (img) => !draft.layoutItems.some((item) => item.imageId === img.id)
@@ -179,12 +188,107 @@ export function EditorPage() {
     }
   };
 
-  const handleSlotClick = () => {
-    // TODO: Implement image assignment functionality
-  };
+  const handleSlotClick = useCallback((slotId: string) => {
+    currentReplacingSlotId.current = slotId;
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const slotId = currentReplacingSlotId.current;
+
+    if (!file || !slotId || !draft || !draftId) {
+      event.target.value = '';
+      return;
+    }
+
+    // Create preview URL and show loading state
+    const previewUrl = URL.createObjectURL(file);
+    setUploadingSlots((prev) => {
+      const updated = new Map(prev);
+      updated.set(slotId, { previewUrl });
+      return updated;
+    });
+
+    // Mark that we're replacing an image to prevent auto-assign
+    isReplacingImageRef.current = true;
+
+    try {
+      // Upload the image
+      const result = await apiClient.uploadImage(file);
+      const newImage = { id: result.id, url: result.url };
+
+      console.log('[EditorPage] Image uploaded, adding to context', {
+        imageId: newImage.id,
+        slotId,
+      });
+
+      // Add to uploaded images context first
+      addImages([newImage]);
+
+      // Find the layout item for this slot (need to use the same ID format as backend)
+      const existingItem = draft.layoutItems.find((item) => item.slotId === slotId);
+
+      if (!existingItem) {
+        console.error('[EditorPage] No existing layoutItem found for slot', { slotId, layoutItems: draft.layoutItems.map(li => ({ id: li.id, slotId: li.slotId })) });
+        throw new Error('Layout item not found for this slot');
+      }
+
+      // Update the draft with the new image - ensure we use the exact ID from existingItem
+      const updatedItems: LayoutItem[] = draft.layoutItems.map((item) =>
+        item.id === existingItem.id ? { ...item, imageId: newImage.id } : item
+      );
+
+      console.log('[EditorPage] Updating draft with new image', {
+        slotId,
+        existingItemId: existingItem.id,
+        newImageId: newImage.id,
+        updatedItems: updatedItems.map(item => ({ id: item.id, slotId: item.slotId, imageId: item.imageId })),
+      });
+
+      setIsSaving(true);
+      const updatedDraft = await apiClient.updateDraft(draftId, {
+        layoutItems: updatedItems,
+      });
+
+      // Update draft state with the new layout items
+      setDraft(updatedDraft);
+
+      const updatedSlotItem = updatedDraft.layoutItems.find(item => item.slotId === slotId);
+      console.log('[EditorPage] Image replaced successfully', {
+        slotId,
+        imageId: newImage.id,
+        updatedDraftLayoutItems: updatedDraft.layoutItems.length,
+        slotItem: updatedSlotItem,
+        slotItemHasImage: !!updatedSlotItem?.imageId,
+      });
+    } catch (err) {
+      console.error('[EditorPage] Failed to replace image', err);
+      toast.error(err);
+    } finally {
+      // Clean up
+      URL.revokeObjectURL(previewUrl);
+      setUploadingSlots((prev) => {
+        const updated = new Map(prev);
+        updated.delete(slotId);
+        return updated;
+      });
+      setIsSaving(false);
+      event.target.value = '';
+      currentReplacingSlotId.current = null;
+
+      // Allow auto-assign again after a short delay
+      setTimeout(() => {
+        isReplacingImageRef.current = false;
+        console.log('[EditorPage] Image replacement complete, auto-assign re-enabled');
+      }, 1000);
+    }
+  }, [draft, draftId, addImages, toast]);
 
   const [titleValue, setTitleValue] = useState<string>('Título del calendario');
+  const [isSaved, setIsSaved] = useState(false);
   const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (draft?.title !== undefined) {
@@ -193,10 +297,13 @@ export function EditorPage() {
   }, [draft?.title]);
 
   useEffect(() => {
-    // Cleanup timeout on unmount
+    // Cleanup timeouts on unmount
     return () => {
       if (titleSaveTimeoutRef.current) {
         clearTimeout(titleSaveTimeoutRef.current);
+      }
+      if (savedTimeoutRef.current) {
+        clearTimeout(savedTimeoutRef.current);
       }
     };
   }, []);
@@ -211,24 +318,35 @@ export function EditorPage() {
       clearTimeout(titleSaveTimeoutRef.current);
     }
 
-    // Debounce the save operation
+    // Debounce the save operation - auto-save after 3 seconds of no typing
     titleSaveTimeoutRef.current = setTimeout(async () => {
       try {
         setIsSaving(true);
+        const titleToSave = newTitle.trim() || undefined; // Save undefined if empty string
         const updatedDraft = await apiClient.updateDraft(draftId, {
-          title: newTitle || 'Título del calendario',
+          ...(titleToSave !== undefined && { title: titleToSave }),
         });
         setDraft(updatedDraft);
-        console.log('[EditorPage] Title updated', { title: newTitle });
+        console.log('[EditorPage] Title auto-saved', { title: titleToSave });
+
+        // Show "Guardado" indicator for 2 seconds
+        setIsSaved(true);
+        if (savedTimeoutRef.current) {
+          clearTimeout(savedTimeoutRef.current);
+        }
+        savedTimeoutRef.current = setTimeout(() => {
+          setIsSaved(false);
+        }, 2000);
       } catch (err) {
-        console.error('[EditorPage] Failed to update title', err);
+        console.error('[EditorPage] Failed to auto-save title', err);
         toast.error(err);
         // Revert on error
         setTitleValue(draft.title || 'Título del calendario');
+        setIsSaved(false);
       } finally {
         setIsSaving(false);
       }
-    }, 500);
+    }, 2000); // 3 seconds delay
   }, [draft, draftId, toast]);
 
   if (isLoading) {
@@ -270,13 +388,15 @@ export function EditorPage() {
       <DraftEditorHeader
         onBack={handleBack}
         onContinue={handleContinue}
-        continueLabel={isSaving ? 'Guardando...' : 'Continuar a Vista Previa'}
+        continueLabel="Continuar a Vista Previa"
         continueDisabled={isSaving}
+        isSaving={isSaving}
+        isSaved={isSaved}
       />
       <div className="w-full bg-gray-50 min-h-screen">
         <div className="container mx-auto px-4 py-8 max-w-5xl">
           <div className="mb-6">
-            <h2 className="text-3xl font-bold text-gray-900">Título del calendario</h2>
+            <h2 className="text-3xl text-gray-900">{titleValue || 'Título del calendario'}</h2>
             <p className="text-muted-foreground mt-2 text-sm">
               Haz clic en una imagen para cambiarla
             </p>
@@ -289,6 +409,14 @@ export function EditorPage() {
             title={titleValue}
             onSlotClick={handleSlotClick}
             onTitleChange={handleTitleChange}
+            uploadingSlots={uploadingSlots}
+          />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+            ref={fileInputRef}
           />
         </div>
       </div>

@@ -13,6 +13,9 @@ interface CalendarEditorProps {
   title?: string;
   onSlotClick?: (slotId: string) => void;
   onTitleChange?: (title: string) => void;
+  isLocked?: boolean;
+  layoutMode?: 'vertical' | 'grid';
+  uploadingSlots?: Map<string, { previewUrl: string }>;
 }
 
 const MONTH_NAMES = [
@@ -115,6 +118,9 @@ export function CalendarEditor({
   title = 'Título del calendario',
   onSlotClick,
   onTitleChange,
+  isLocked = false,
+  layoutMode = 'vertical',
+  uploadingSlots = new Map(),
 }: CalendarEditorProps) {
   const sortedSlots = sortSlots(layout.slots);
   const coverSlot = sortedSlots.find(
@@ -140,12 +146,24 @@ export function CalendarEditor({
 
   const getImageForSlot = (slotId: string) => {
     const item = layoutItems.find((li) => li.slotId === slotId);
-    if (!item?.imageId) return null;
-    return images.find((img) => img.id === item.imageId) || null;
+    if (!item?.imageId) {
+      console.log('[CalendarEditor] No image for slot', { slotId, item: item ? { id: item.id, slotId: item.slotId } : null });
+      return null;
+    }
+    const image = images.find((img) => img.id === item.imageId) || null;
+    if (!image) {
+      console.log('[CalendarEditor] Image not found in images array', {
+        slotId,
+        imageId: item.imageId,
+        availableImageIds: images.map(img => img.id),
+        layoutItem: item
+      });
+    }
+    return image;
   };
 
   const handleSlotClick = (slotId: string) => {
-    if (onSlotClick) {
+    if (!isLocked && onSlotClick) {
       onSlotClick(slotId);
     }
   };
@@ -156,10 +174,21 @@ export function CalendarEditor({
         <div className="flex justify-center">
           <div className="w-full max-w-2xl bg-white rounded-lg shadow-md p-8">
             <div
-              className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 cursor-pointer hover:border-gray-300 transition-colors mb-6"
+              className={`relative w-full aspect-[4/3] rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-100 mb-6 ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-gray-300 transition-colors'}`}
               onClick={() => handleSlotClick(coverSlot.id)}
             >
-              {getImageForSlot(coverSlot.id) ? (
+              {uploadingSlots.has(coverSlot.id) ? (
+                <>
+                  <img
+                    src={uploadingSlots.get(coverSlot.id)!.previewUrl}
+                    alt="Uploading cover"
+                    className="w-full h-full object-cover opacity-70"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/30">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                  </div>
+                </>
+              ) : getImageForSlot(coverSlot.id) ? (
                 <img
                   src={getImageForSlot(coverSlot.id)!.url}
                   alt="Cover"
@@ -172,12 +201,12 @@ export function CalendarEditor({
               )}
             </div>
             <div className="text-center space-y-4">
-              {onTitleChange ? (
+              {!isLocked && onTitleChange ? (
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => onTitleChange(e.target.value)}
-                  className="text-4xl font-bold text-gray-800 bg-transparent border border-transparent hover:border-gray-300 focus:border-gray-400 outline-none text-center w-full focus:ring-2 focus:ring-gray-300 rounded px-2 py-1 transition-colors"
+                  className="text-4xl font text-gray-800 bg-transparent border border-transparent hover:border-gray-300 focus:border-gray-400 outline-none text-center w-full focus:ring-2 focus:ring-gray-300 rounded px-2 py-1 transition-colors"
                   placeholder="Título del calendario"
                 />
               ) : (
@@ -189,62 +218,75 @@ export function CalendarEditor({
         </div>
       )}
 
-      {monthSlots.map((slot) => {
-        const monthNum = getMonthNumber(slot.name);
-        const monthName = getMonthName(slot.name);
-        const image = getImageForSlot(slot.id);
-        const calendarDays = monthNum ? generateCalendarDays(year, monthNum) : [];
+      <div className={layoutMode === 'grid' ? 'grid grid-cols-2 gap-8' : ''}>
+        {monthSlots.map((slot) => {
+          const monthNum = getMonthNumber(slot.name);
+          const monthName = getMonthName(slot.name);
+          const image = getImageForSlot(slot.id);
+          const calendarDays = monthNum ? generateCalendarDays(year, monthNum) : [];
 
-        return (
-          <div key={slot.id} className="flex justify-center mb-8">
-            <div className="w-full max-w-2xl bg-white rounded-lg shadow-md p-8">
-              <div
-                className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-100 cursor-pointer hover:border-gray-300 transition-colors mb-6"
-                onClick={() => handleSlotClick(slot.id)}
-              >
-                {image ? (
-                  <img
-                    src={image.url}
-                    alt={monthName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <span className="text-sm">Agregar foto para {monthName}</span>
+          return (
+            <div key={slot.id} className={layoutMode === 'grid' ? '' : 'flex justify-center mb-8'}>
+              <div className={`w-full ${layoutMode === 'grid' ? '' : 'max-w-2xl'} bg-white rounded-lg shadow-md p-8`}>
+                <div
+                  className={`relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-100 mb-6 ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-gray-300 transition-colors'}`}
+                  onClick={() => handleSlotClick(slot.id)}
+                >
+                  {uploadingSlots.has(slot.id) ? (
+                    <>
+                      <img
+                        src={uploadingSlots.get(slot.id)!.previewUrl}
+                        alt={`Uploading ${monthName}`}
+                        className="w-full h-full object-cover opacity-70"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/30">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                      </div>
+                    </>
+                  ) : image ? (
+                    <img
+                      src={image.url}
+                      alt={monthName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <span className="text-sm">Agregar foto para {monthName}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mb-4">
+                  <div className="text-2xl font-semibold text-gray-900">
+                    {monthName} {year}
+                  </div>
+                </div>
+                {monthNum && calendarDays.length > 0 && (
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="grid grid-cols-7 gap-1">
+                      {DAY_NAMES.map((day) => (
+                        <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
+                          {day}
+                        </div>
+                      ))}
+                      {calendarDays.map((day, index) => (
+                        <div
+                          key={index}
+                          className={`text-center py-2 text-sm ${day === null
+                            ? 'text-transparent'
+                            : 'text-gray-700 hover:bg-gray-100 rounded'
+                            }`}
+                        >
+                          {day}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-              <div className="mb-4">
-                <div className="text-2xl font-semibold text-gray-900">
-                  {monthName} {year}
-                </div>
-              </div>
-              {monthNum && calendarDays.length > 0 && (
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <div className="grid grid-cols-7 gap-1">
-                    {DAY_NAMES.map((day) => (
-                      <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
-                        {day}
-                      </div>
-                    ))}
-                    {calendarDays.map((day, index) => (
-                      <div
-                        key={index}
-                        className={`text-center py-2 text-sm ${day === null
-                          ? 'text-transparent'
-                          : 'text-gray-700 hover:bg-gray-100 rounded'
-                          }`}
-                      >
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

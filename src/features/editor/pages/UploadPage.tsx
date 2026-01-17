@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { Button, Loading, Skeleton } from '@/components/ui';
+import { Button, Skeleton } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
@@ -93,8 +93,8 @@ export function UploadPage() {
     const errors: Array<{ fileName: string; error: string; slotIndex?: number }> = [];
 
     // Upload images in batches to prevent Cloudinary timeouts
-    const BATCH_SIZE = 3; // Upload 3 images at a time
-    const BATCH_DELAY_MS = 500; // Wait 500ms between batches
+    const BATCH_SIZE = 5; // Upload 5 images at a time (increased for better throughput)
+    const BATCH_DELAY_MS = 200; // Wait 200ms between batches (reduced delay)
 
     try {
       for (let i = 0; i < fileArray.length; i += BATCH_SIZE) {
@@ -394,8 +394,8 @@ export function UploadPage() {
                             alt={`Uploading ${slot.index + 1}`}
                             className="w-full h-full object-cover opacity-70"
                           />
-                          <div className="absolute inset-0 flex items-center justify-center bg-white/20">
-                            <Loading size="sm" className="text-white border-blue-600" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-white/30">
+                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
                           </div>
                         </div>
                       );
