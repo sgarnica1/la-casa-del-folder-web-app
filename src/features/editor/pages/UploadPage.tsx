@@ -290,7 +290,10 @@ export function UploadPage() {
             return (
               <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-5xl mb-6">Subir imágenes</h2>
+                  <h2 className="text-5xl mb-6">
+                    Subir imágenes
+                    <span className="block text-2xl text-muted-foreground mt-2">0 / 20 fotos</span>
+                  </h2>
                   <p className="text-muted-foreground">
                     Selecciona <strong>{requiredCount} imágenes</strong> para empezar.
                   </p>
@@ -320,7 +323,12 @@ export function UploadPage() {
           return (
             <div className="space-y-6">
               <div>
-                <h2 className="text-4xl font">Subir imágenes</h2>
+                <h2 className="text-4xl font">
+                  Subir imágenes
+                  <span className="block text-xl text-muted-foreground mt-2">
+                    {Math.min(uploadedImages.length, maxImages)} / {maxImages} fotos
+                  </span>
+                </h2>
                 <p className="text-muted-foreground mt-2">
                   Selecciona <strong>{requiredCount} imágenes</strong> para empezar
                 </p>

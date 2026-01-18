@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Package } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { Toaster } from 'sonner';
 import { UploadedImagesProvider } from '@/contexts/UploadedImagesContext';
@@ -12,6 +13,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   useApiClient();
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isActive = (path: string) => {
@@ -19,47 +21,68 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const menuItems = [
-    { path: '/dashboard/orders', label: 'Pedidos', adminOnly: true },
+    { path: '/dashboard/orders', label: 'Pedidos', icon: Package, adminOnly: true },
   ];
+
+  const showBackButton = location.pathname !== '/dashboard/orders' && location.pathname.startsWith('/dashboard/orders');
+  const handleBack = () => {
+    navigate('/dashboard/orders');
+  };
 
   return (
     <UploadedImagesProvider>
       <div className="min-h-screen bg-background flex">
         {/* Sidebar */}
-        <aside className={`hidden md:flex flex-col w-64 border-r bg-white transition-transform ${sidebarOpen ? 'translate-x-0' : ''
+        <aside className={`hidden md:flex flex-col w-64 border-r bg-white sticky top-0 h-screen transition-transform ${sidebarOpen ? 'translate-x-0' : ''
           }`}>
-          <div className="p-4 border-b">
+          <div className="p-4 border-b flex-shrink-0">
             <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
           </div>
-          <nav className="flex-1 p-4 space-y-2">
-            {menuItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            <p className='text-xs font-medium text-gray-600'>Administración</p>
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="border-b bg-white">
+          <header className="sticky top-0 z-10 border-b bg-white flex-shrink-0">
             <div className="px-4 py-4 flex items-center justify-between">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="md:hidden p-2 rounded-md hover:bg-gray-100"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="md:hidden p-2 rounded-md hover:bg-gray-100"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+                {showBackButton && (
+                  <button
+                    onClick={handleBack}
+                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Volver
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <SignedOut>
                   <SignInButton mode="modal">
@@ -76,7 +99,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-y-auto">
             {children}
           </main>
         </div>
@@ -104,19 +127,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </button>
           </div>
           <nav className="p-4 space-y-2">
-            {menuItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-              >
-                {item.label}
-              </Link>
-            ))}
+            <p className='text-xs font-medium text-gray-600'>Administración</p>
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         </aside>
       </div>

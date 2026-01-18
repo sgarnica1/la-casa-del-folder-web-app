@@ -195,13 +195,25 @@ class ApiClient {
     }
   }
 
-  async getAllOrders(): Promise<Order[]> {
+  async getAllOrders(page = 1, limit = 20): Promise<{
+    data: Order[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${this.baseUrl}/orders`, {
+      const response = await fetch(`${this.baseUrl}/orders?page=${page}&limit=${limit}`, {
         headers,
       });
-      return handleResponse<Order[]>(response);
+      return handleResponse<{
+        data: Order[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>(response);
     } catch (error) {
       return handleFetchError(error);
     }
@@ -214,6 +226,20 @@ class ApiClient {
         headers,
       });
       return handleResponse<OrderDetail>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async updateOrderStatus(orderId: string, status: 'in_production' | 'shipped'): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderStatus: status }),
+      });
+      await handleResponse<void>(response);
     } catch (error) {
       return handleFetchError(error);
     }

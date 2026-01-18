@@ -24,7 +24,7 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DAY_NAMES = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
 function getMonthName(slotName: string): string {
   // Try "mes X" or "month X" first

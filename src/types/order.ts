@@ -8,6 +8,24 @@ export interface Order {
   updatedAt: string;
 }
 
+export interface OrderCustomer {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+export interface OrderAddress {
+  name: string;
+  phone: string | null;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
 export interface OrderItem {
   id: string;
   productNameSnapshot: string;
@@ -21,6 +39,8 @@ export interface OrderItem {
 
 export interface OrderDetail extends Order {
   shippingAddressJson: Record<string, unknown>;
+  customer: OrderCustomer;
+  address: OrderAddress | null;
   items: OrderItem[];
 }
 

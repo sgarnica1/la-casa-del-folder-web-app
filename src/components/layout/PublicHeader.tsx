@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { Button } from '@/components/ui';
 
 export function PublicHeader() {
   const location = useLocation();
@@ -9,7 +10,7 @@ export function PublicHeader() {
   };
 
   return (
-    <header className="border-b bg-white">
+    <header className="sticky top-0 z-10 border-b bg-white">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
@@ -40,9 +41,9 @@ export function PublicHeader() {
           <div className="flex items-center gap-2">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="text-sm font-medium text-gray-600 hover:text-gray-900">
+                <Button variant="default" size="sm">
                   Iniciar Sesión
-                </button>
+                </Button>
               </SignInButton>
             </SignedOut>
             <SignedIn>
