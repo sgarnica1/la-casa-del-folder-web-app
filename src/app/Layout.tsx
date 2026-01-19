@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
+import { Toaster } from 'sonner';
 import { UploadedImagesProvider } from '@/contexts/UploadedImagesContext';
 import { useApiClient } from '@/hooks/useApiClient';
 
@@ -30,6 +31,7 @@ export function Layout({ children }: LayoutProps) {
         <main className="container mx-auto px-4 py-8">
           {children}
         </main>
+        <Toaster position="bottom-right" richColors />
       </div>
     </UploadedImagesProvider>
   );

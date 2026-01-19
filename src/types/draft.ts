@@ -10,6 +10,7 @@ export interface Draft {
   status: DraftStatus;
   productId: string;
   templateId: string;
+  title?: string;
   layoutItems: LayoutItem[];
   createdAt: string;
   updatedAt: string;

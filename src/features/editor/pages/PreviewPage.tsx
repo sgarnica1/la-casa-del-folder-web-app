@@ -1,8 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Skeleton,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui';
+import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
+import { useToast } from '@/hooks/useToast';
+import { CalendarEditor } from '@/components/product/CalendarEditor';
 import type { Draft, Layout } from '@/types';
 
 export function PreviewPage() {
@@ -13,7 +28,8 @@ export function PreviewPage() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLocking, setIsLocking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showLockDialog, setShowLockDialog] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     if (!draftId) return;
@@ -31,28 +47,28 @@ export function PreviewPage() {
           navigate(`/draft/${draftId}/confirm`);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load draft');
+        toast.error(err);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [draftId, navigate]);
+  }, [draftId, navigate, toast]);
 
   const handleLockDraft = async () => {
     if (!draftId) return;
 
+    setShowLockDialog(false);
     setIsLocking(true);
-    setError(null);
 
     try {
       const lockedDraft = await apiClient.lockDraft(draftId);
       setDraft(lockedDraft);
+      toast.success('Diseño bloqueado — listo para ordenar');
       navigate(`/draft/${draftId}/confirm`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to lock draft');
-    } finally {
+      toast.error(err);
       setIsLocking(false);
     }
   };
@@ -65,83 +81,86 @@ export function PreviewPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p>Cargando...</p>
-      </div>
+      <>
+        <DraftEditorHeader />
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-4 w-96" />
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-64" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-96 w-full" />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </>
     );
   }
 
   if (!draft || !layout) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p>Error: No se pudo cargar el borrador</p>
-      </div>
+      <>
+        <DraftEditorHeader />
+        <div className="container mx-auto px-4 py-8">
+          <p>Error: No se pudo cargar el borrador</p>
+        </div>
+      </>
     );
   }
 
-  const getImageForSlot = (slotId: string) => {
-    const item = draft.layoutItems.find((li) => li.slotId === slotId);
-    if (!item?.imageId) return null;
-    return uploadedImages.find((img) => img.id === item.imageId) || null;
-  };
-
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold">Vista Previa</h2>
-          <p className="text-muted-foreground mt-2">
-            Revisa tu producto antes de bloquearlo
-          </p>
-        </div>
-
-        {error && (
-          <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-            {error}
+    <>
+      <DraftEditorHeader
+        onBack={handleBackToEditor}
+        onContinue={() => setShowLockDialog(true)}
+        continueLabel={isLocking ? 'Guardando...' : 'Bloquear Diseño'}
+        continueDisabled={isLocking}
+        backDisabled={isLocking}
+      />
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-3xl font-bold">Vista Previa</h2>
+            <p className="text-muted-foreground mt-2">
+              Revisa tu producto antes de bloquearlo
+            </p>
           </div>
-        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Vista Previa del Calendario</CardTitle>
-            <CardDescription>
-              Esta es la vista exacta que se utilizará para la orden
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {layout.slots.map((slot) => {
-                const image = getImageForSlot(slot.id);
-                return (
-                  <div key={slot.id} className="space-y-2">
-                    <div className="text-sm font-medium">{slot.name}</div>
-                    {image ? (
-                      <img
-                        src={image.url}
-                        alt={slot.name}
-                        className="w-full h-32 object-cover rounded-md border"
-                      />
-                    ) : (
-                      <div className="w-full h-32 bg-muted rounded-md border flex items-center justify-center text-muted-foreground text-sm">
-                        Sin imagen
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-between gap-2">
-          <Button variant="outline" onClick={handleBackToEditor} disabled={isLocking}>
-            Volver al Editor
-          </Button>
-          <Button onClick={handleLockDraft} disabled={isLocking} size="lg">
-            {isLocking ? 'Guardando...' : 'Guardar Diseño'}
-          </Button>
+          <CalendarEditor
+            layout={layout}
+            layoutItems={draft.layoutItems}
+            images={uploadedImages}
+            year={2026}
+            title={draft.title || 'Título del borrador'}
+            isLocked={true}
+            layoutMode="grid"
+          />
         </div>
       </div>
-    </div>
+
+      <Dialog open={showLockDialog} onOpenChange={setShowLockDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Bloqueo</DialogTitle>
+            <DialogDescription>
+              Una vez bloqueado, no podrás editar este diseño. ¿Estás seguro?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className='mt-6'>
+            <Button variant="outline" onClick={() => setShowLockDialog(false)} disabled={isLocking}>
+              Cancelar
+            </Button>
+            <Button onClick={handleLockDraft} disabled={isLocking} size="lg">
+              Bloquear
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

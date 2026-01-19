@@ -7,3 +7,4 @@ export type * from './layout';
 export type * from './product';
 export type * from './editor';
 export type * from './order';
+export * from './user';

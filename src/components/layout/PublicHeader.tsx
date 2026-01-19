@@ -1,0 +1,75 @@
+import { Link, useLocation } from 'react-router-dom';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { Palette, ShoppingBag } from 'lucide-react';
+import { Button } from '@/components/ui';
+
+export function PublicHeader() {
+  const location = useLocation();
+
+  const isActive = (path: string) => {
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link to="/product/calendar" className="hover:opacity-80 transition-opacity">
+              <img
+                src="/assets/images/logo-casa-folder.svg"
+                alt="La Casa Del Folder"
+                className="h-8 md:h-10"
+              />
+            </Link>
+            <nav className="hidden md:flex items-center gap-6">
+              <Link
+                to="/product/calendar"
+                className={`text-sm font-medium transition-colors ${isActive('/product/calendar')
+                  ? 'text-primary'
+                  : 'text-foreground/70 hover:text-primary'
+                  }`}
+              >
+                Inicio
+              </Link>
+            </nav>
+          </div>
+          <div className="flex items-center gap-2">
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button variant="default" size="sm">
+                  Iniciar Sesión
+                </Button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <div className="flex items-center gap-1">
+                <Link
+                  to="/account/my-designs"
+                  className={`p-2 rounded-md transition-colors ${isActive('/account/my-designs')
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-foreground/70 hover:bg-primary/10 hover:text-primary'
+                    }`}
+                  title="Mis Diseños"
+                >
+                  <Palette className="h-5 w-5" />
+                </Link>
+                <Link
+                  to="/account/order/history"
+                  className={`p-2 mr-2 rounded-md transition-colors ${isActive('/account/order')
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-foreground/70 hover:bg-primary/10 hover:text-primary'
+                    }`}
+                  title="Mis Pedidos"
+                >
+                  <ShoppingBag className="h-5 w-5" />
+                </Link>
+                <UserButton afterSignOutUrl="/product/calendar" />
+              </div>
+            </SignedIn>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
