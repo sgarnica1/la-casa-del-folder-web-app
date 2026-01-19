@@ -48,6 +48,7 @@ export interface DesignSnapshot {
   draftId: string;
   productId: string;
   templateId: string | null;
+  title: string | null;
   layoutItems: DesignSnapshotLayoutItem[];
 }
 

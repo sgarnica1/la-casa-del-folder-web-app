@@ -12,6 +12,10 @@ import { PaymentConfirmedPage } from '@/features/order/pages/PaymentConfirmedPag
 import { DashboardLoginPage } from '@/features/dashboard/pages/DashboardLoginPage';
 import { OrdersListPage } from '@/features/dashboard/pages/OrdersListPage';
 import { OrderDetailPage } from '@/features/dashboard/pages/OrderDetailPage';
+import { MyDraftsPage } from '@/features/user/pages/MyDraftsPage';
+import { MyDraftDetailPage } from '@/features/user/pages/MyDraftDetailPage';
+import { MyOrdersPage } from '@/features/user/pages/MyOrdersPage';
+import { MyOrderDetailPage } from '@/features/user/pages/MyOrderDetailPage';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { NotFoundPage } from '@/components/NotFoundPage';
 import { UserRole } from '@/types';
@@ -104,6 +108,46 @@ function App() {
               <DashboardLayout>
                 <OrderDetailPage />
               </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/my-designs"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PublicLayout>
+                <MyDraftsPage />
+              </PublicLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/my-designs/:id"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PublicLayout>
+                <MyDraftDetailPage />
+              </PublicLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/order/history"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PublicLayout>
+                <MyOrdersPage />
+              </PublicLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/order/:id"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PublicLayout>
+                <MyOrderDetailPage />
+              </PublicLayout>
             </ProtectedRoute>
           }
         />

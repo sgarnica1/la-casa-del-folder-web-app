@@ -90,26 +90,26 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
     if (type === 'order') {
       switch (status) {
         case 'new':
-          return 'bg-blue-100 text-blue-800 border-blue-200';
+          return 'bg-primary/10 text-primary border-primary/20';
         case 'in_production':
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
         case 'shipped':
           return 'bg-green-100 text-green-800 border-green-200';
         default:
-          return 'bg-gray-100 text-gray-800 border-gray-200';
+          return 'bg-muted text-muted-foreground border-border';
       }
     } else {
       switch (status.toLowerCase()) {
         case 'pending':
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
         case 'paid':
           return 'bg-green-100 text-green-800 border-green-200';
         case 'failed':
-          return 'bg-red-100 text-red-800 border-red-200';
+          return 'bg-accent/10 text-accent border-accent/20';
         case 'refunded':
           return 'bg-purple-100 text-purple-800 border-purple-200';
         default:
-          return 'bg-gray-100 text-gray-800 border-gray-200';
+          return 'bg-muted text-muted-foreground border-border';
       }
     }
   };
@@ -224,7 +224,7 @@ export function OrderDetailPage() {
   if (!order) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <h1 className="text-2xl font-bold mb-4">Detalles del Pedido</h1>
+        <h1 className="text-2xl font-bold mb-4 text-primary">Detalles del Pedido</h1>
         <p className="text-muted-foreground">No se pudo cargar el pedido</p>
       </div>
     );
@@ -247,7 +247,7 @@ export function OrderDetailPage() {
         </Button>
       </div>
 
-      <h1 className="text-2xl font-bold mb-6">Detalles del Pedido</h1>
+      <h1 className="text-2xl font-bold mb-6 text-primary">Detalles del Pedido</h1>
 
       <div className="space-y-6">
         <div className="border rounded-lg p-6 bg-muted/20">
@@ -458,7 +458,7 @@ function LayoutItemRenderer({
   if (item.type === 'text') {
     return (
       <div className="border rounded-lg p-3 bg-muted/20">
-        <div className="text-xs font-semibold text-blue-600 mb-2">{monthLabel}</div>
+        <div className="text-xs font-semibold text-primary mb-2">{monthLabel}</div>
         <div className="text-xs text-muted-foreground mb-1">Slot de Texto</div>
         <div className="text-xs text-muted-foreground">Índice: {item.layoutIndex}</div>
       </div>
@@ -468,7 +468,7 @@ function LayoutItemRenderer({
   if (!item.images || item.images.length === 0) {
     return (
       <div className="border rounded-lg p-3 bg-muted/20">
-        <div className="text-xs font-semibold text-blue-600 mb-2">{monthLabel}</div>
+        <div className="text-xs font-semibold text-primary mb-2">{monthLabel}</div>
         <div className="text-xs text-muted-foreground mb-2">Slot de Imagen</div>
         <div className="w-full h-32 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
           Sin imagen

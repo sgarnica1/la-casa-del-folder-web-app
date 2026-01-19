@@ -36,10 +36,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <aside className={`hidden md:flex flex-col w-64 border-r bg-white sticky top-0 h-screen transition-transform ${sidebarOpen ? 'translate-x-0' : ''
           }`}>
           <div className="p-4 border-b flex-shrink-0">
-            <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+            <h2 className="text-xl font-bold text-primary">Dashboard</h2>
           </div>
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <p className='text-xs font-medium text-gray-600'>Administración</p>
+            <p className='text-xs font-medium text-muted-foreground'>Administración</p>
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -47,8 +47,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   key={item.path}
                   to={item.path}
                   className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-foreground/70 hover:bg-accent/10 hover:text-primary'
                     }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -116,10 +116,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             }`}
         >
           <div className="p-4 border-b flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+            <h2 className="text-xl font-bold text-primary">Dashboard</h2>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-2 rounded-md hover:bg-gray-100"
+              className="p-2 rounded-md hover:bg-accent/10"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -127,7 +127,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </button>
           </div>
           <nav className="p-4 space-y-2">
-            <p className='text-xs font-medium text-gray-600'>Administración</p>
+            <p className='text-xs font-medium text-muted-foreground'>Administración</p>
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -136,8 +136,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-foreground/70 hover:bg-accent/10 hover:text-primary'
                     }`}
                 >
                   <Icon className="h-5 w-5" />

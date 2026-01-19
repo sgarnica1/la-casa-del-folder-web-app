@@ -290,7 +290,7 @@ export function UploadPage() {
             return (
               <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-5xl mb-6">
+                  <h2 className="text-5xl mb-6 text-primary">
                     Subir imágenes
                     <span className="block text-2xl text-muted-foreground mt-2">0 / 20 fotos</span>
                   </h2>
@@ -309,7 +309,8 @@ export function UploadPage() {
                   }}
                   disabled={isUploading}
                   size="lg"
-                  className="bg-gray-800 hover:bg-gray-900 text-white"
+                  variant="secondary"
+                  className="w-auto"
                 >
                   Seleccionar imágenes
                 </Button>
@@ -323,7 +324,7 @@ export function UploadPage() {
           return (
             <div className="space-y-6">
               <div>
-                <h2 className="text-4xl font">
+                <h2 className="text-4xl text-primary">
                   Subir imágenes
                   <span className="block text-xl text-muted-foreground mt-2">
                     {Math.min(uploadedImages.length, maxImages)} / {maxImages} fotos
@@ -444,7 +445,7 @@ export function UploadPage() {
                             className="w-full h-full object-cover opacity-70"
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-white/30">
-                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                           </div>
                         </div>
                       );

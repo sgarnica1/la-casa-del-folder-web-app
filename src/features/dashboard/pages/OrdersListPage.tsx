@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, MoreVertical } from 'lucide-react';
+import { Copy, MoreVertical, Loader2 } from 'lucide-react';
 import { Skeleton, Button } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
@@ -26,24 +26,24 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
     if (type === 'order') {
       switch (status) {
         case 'new':
-          return 'bg-blue-100 text-blue-800 border-blue-200';
+          return 'bg-primary/10 text-primary border-primary/20';
         case 'in_production':
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
         case 'shipped':
           return 'bg-green-100 text-green-800 border-green-200';
         default:
-          return 'bg-gray-100 text-gray-800 border-gray-200';
+          return 'bg-muted text-muted-foreground border-border';
       }
     } else {
       switch (status) {
         case 'paid':
           return 'bg-green-100 text-green-800 border-green-200';
         case 'pending':
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
         case 'failed':
-          return 'bg-red-100 text-red-800 border-red-200';
+          return 'bg-accent/10 text-accent border-accent/20';
         default:
-          return 'bg-gray-100 text-gray-800 border-gray-200';
+          return 'bg-muted text-muted-foreground border-border';
       }
     }
   };
@@ -73,52 +73,62 @@ export function OrdersListPage() {
   const [page, setPage] = useState(1);
   const limit = 10;
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatusFilter>('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatusFilter>('all');
   const toast = useToast();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadAllOrders = async () => {
+  const loadAllOrders = async (silent = false) => {
+    if (!silent) {
       setIsLoading(true);
-      try {
-        const allOrdersData: Order[] = [];
-        let currentPage = 1;
-        let hasMore = true;
+    } else {
+      setIsRefreshing(true);
+    }
 
-        while (hasMore && !cancelled) {
-          const response = await apiClient.getAllOrders(currentPage, 100);
-          if (response.data.length === 0) {
+    try {
+      const allOrdersData: Order[] = [];
+      let currentPage = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await apiClient.getAllOrders(currentPage, 100);
+        if (response.data.length === 0) {
+          hasMore = false;
+        } else {
+          allOrdersData.push(...response.data);
+          if (response.data.length < 100 || currentPage >= response.totalPages) {
             hasMore = false;
           } else {
-            allOrdersData.push(...response.data);
-            if (response.data.length < 100 || currentPage >= response.totalPages) {
-              hasMore = false;
-            } else {
-              currentPage++;
-            }
+            currentPage++;
           }
         }
-
-        if (!cancelled) {
-          setAllOrders(allOrdersData);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          toast.error(err);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
       }
-    };
 
+      setAllOrders(allOrdersData);
+      setLastUpdateTime(new Date());
+    } catch (err) {
+      if (!silent) {
+        toast.error(err);
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     loadAllOrders();
 
+    intervalRef.current = setInterval(() => {
+      loadAllOrders(true);
+    }, 30000);
+
     return () => {
-      cancelled = true;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -178,9 +188,38 @@ export function OrdersListPage() {
     );
   }
 
+  const formatLastUpdate = (date: Date | null): string => {
+    if (!date) return '';
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins === 0) return 'Ahora';
+    if (diffMins < 60) return `hace ${diffMins} ${diffMins === 1 ? 'minuto' : 'minutos'}`;
+
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <h1 className="text-2xl font-bold mb-6">Pedidos</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-primary">Pedidos</h1>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {isRefreshing && (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Actualizando...</span>
+            </>
+          )}
+          {!isRefreshing && lastUpdateTime && (
+            <span>Última actualización: {formatLastUpdate(lastUpdateTime)}</span>
+          )}
+        </div>
+      </div>
 
       <div className="flex gap-4 mb-6">
         <div className="flex items-center gap-2">

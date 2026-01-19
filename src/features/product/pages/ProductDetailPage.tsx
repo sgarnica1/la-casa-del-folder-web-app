@@ -191,10 +191,10 @@ export function ProductDetailPage() {
         <div className="space-y-6">
           {/* Title */}
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+            <h1 className="text-3xl md:text-4xl mb-3">
               Calendario en horizontal
             </h1>
-            <p className="text-gray-600 text-base leading-relaxed">
+            <p className="text-muted-foreground text-base leading-relaxed">
               Este fotocalendario a doble página, ideal para familias, tiene mucho espacio para tus fechas importantes.
             </p>
           </div>
@@ -205,8 +205,8 @@ export function ProductDetailPage() {
               <button
                 onClick={() => setSelectedVariant('mediano')}
                 className={`px-6 py-2 rounded-md font-medium transition-colors ${selectedVariant === 'mediano'
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary'
                   }`}
               >
                 Mediano
@@ -214,8 +214,8 @@ export function ProductDetailPage() {
               <button
                 onClick={() => setSelectedVariant('grande')}
                 className={`px-6 py-2 rounded-md font-medium transition-colors ${selectedVariant === 'grande'
-                  ? 'bg-gray-800 text-white'
-                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary'
                   }`}
               >
                 Grande
@@ -225,7 +225,7 @@ export function ProductDetailPage() {
 
           {/* Price */}
           <div>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-2xl font-bold text-primary">
               ${variants[selectedVariant].price.toFixed(2)} MXN
             </p>
           </div>
@@ -236,7 +236,7 @@ export function ProductDetailPage() {
               <SignInButton mode="modal" fallbackRedirectUrl={window.location.href}>
                 <Button
                   size="lg"
-                  className="w-full bg-gray-800 hover:bg-gray-900 text-white"
+                  className="w-full"
                   onClick={handlePersonalizeClick}
                 >
                   Personalizar
@@ -248,7 +248,7 @@ export function ProductDetailPage() {
                 onClick={handlePersonalize}
                 disabled={isLoading || !isLoaded}
                 size="lg"
-                className="w-full bg-gray-800 hover:bg-gray-900 text-white"
+                className="w-full"
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2">
@@ -264,10 +264,10 @@ export function ProductDetailPage() {
 
           {/* Specifications */}
           <div className="border-t pt-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Especificaciones</h2>
+            <h2 className="text-lg font-semibold text-primary mb-4">Especificaciones</h2>
             <ul className="space-y-2">
               {specifications.map((spec, index) => (
-                <li key={index} className="text-gray-600 flex items-start">
+                <li key={index} className="text-muted-foreground flex items-start">
                   <span className="mr-2">•</span>
                   <span>{spec}</span>
                 </li>

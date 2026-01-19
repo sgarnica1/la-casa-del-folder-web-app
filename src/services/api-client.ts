@@ -52,7 +52,7 @@ class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<HeadersInit> {
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = {};
 
     if (this.getToken) {
       try {
@@ -67,7 +67,7 @@ class ApiClient {
       }
     }
 
-    return headers;
+    return headers as HeadersInit;
   }
 
   async getDraft(draftId: string): Promise<Draft> {
@@ -84,7 +84,7 @@ class ApiClient {
 
   async createDraft(productId: string, templateId: string): Promise<Draft> {
     try {
-      const headers = await this.getAuthHeaders();
+      const headers = await this.getAuthHeaders() as Record<string, string>;
       const hasAuth = !!headers['Authorization'];
       console.log('[ApiClient] Creating draft', { hasAuth, productId, templateId });
 
@@ -252,6 +252,77 @@ class ApiClient {
         headers,
       });
       return handleResponse<{ id: string; clerkUserId: string; role: 'admin' | 'customer' }>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getMyDrafts(): Promise<Array<{ id: string; title: string | null; state: string; updatedAt: string; coverUrl: string | null }>> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/user/me/drafts`, {
+        headers,
+      });
+      return handleResponse<Array<{ id: string; title: string | null; state: string; updatedAt: string; coverUrl: string | null }>>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getMyDraftById(draftId: string): Promise<Draft> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/user/me/drafts/${draftId}`, {
+        headers,
+      });
+      const data = await handleResponse<{
+        id: string;
+        title: string | undefined;
+        state: string;
+        layoutItems: Array<{ id: string; slotId: string; imageId: string | null }>;
+        imageIds: string[];
+        createdAt: string;
+        updatedAt: string;
+      }>(response);
+
+      return {
+        id: data.id,
+        status: data.state === 'editing' ? 'draft' : (data.state as 'locked' | 'ordered'),
+        productId: '',
+        templateId: '',
+        title: data.title,
+        layoutItems: data.layoutItems.map(item => ({
+          id: item.id,
+          slotId: item.slotId,
+          imageId: item.imageId || undefined,
+        })),
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      };
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getMyOrders(): Promise<Array<{ id: string; status: string; total: number; createdAt: string; title: string | null; coverUrl: string | null }>> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/user/me/orders`, {
+        headers,
+      });
+      return handleResponse<Array<{ id: string; status: string; total: number; createdAt: string; title: string | null; coverUrl: string | null }>>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getMyOrderById(orderId: string): Promise<OrderDetail> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/user/me/orders/${orderId}`, {
+        headers,
+      });
+      return handleResponse<OrderDetail>(response);
     } catch (error) {
       return handleFetchError(error);
     }
