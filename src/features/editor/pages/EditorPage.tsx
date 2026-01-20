@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
@@ -7,15 +7,21 @@ import { CalendarEditor } from '@/components/product/CalendarEditor';
 import { apiClient } from '@/services/api-client';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
 import { useToast } from '@/hooks/useToast';
+import { useWaitForToken } from '@/hooks/useWaitForToken';
 import type { Draft, Layout, LayoutItem } from '@/types';
+
+const hasLoadedImagesRef = new Map<string, boolean>();
 
 export function EditorPage() {
   const { draftId } = useParams<{ draftId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { waitForToken, isLoaded, isSignedIn } = useWaitForToken();
   const { images: uploadedImages, addImages } = useUploadedImages();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingSlots, setUploadingSlots] = useState<Map<string, { previewUrl: string }>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,13 +29,36 @@ export function EditorPage() {
   const toast = useToast();
   const autoAssignRef = useRef(false);
   const isReplacingImageRef = useRef(false);
+  const addImagesRef = useRef(addImages);
+  const toastRef = useRef(toast);
+
+  useEffect(() => {
+    addImagesRef.current = addImages;
+    toastRef.current = toast;
+  }, [addImages, toast]);
 
   useEffect(() => {
     if (!draftId) return;
 
+    if (!isLoaded) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      setIsLoading(false);
+      return;
+    }
+
     autoAssignRef.current = false;
 
     const loadData = async () => {
+      const token = await waitForToken();
+      if (!token) {
+        console.warn('[EditorPage] No token available, cannot load draft');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         console.log('[EditorPage] Loading data for draft', { draftId });
         const [draftData, layoutData] = await Promise.all([
@@ -50,9 +79,7 @@ export function EditorPage() {
         const imageIds = draftData.layoutItems
           .map((item) => item.imageId)
           .filter((id): id is string => {
-            // Filter out null, undefined, empty strings, and validate UUID format
             if (!id || typeof id !== 'string') return false;
-            // Basic UUID validation (8-4-4-4-12 hex format)
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             const isValid = uuidRegex.test(id);
             if (!isValid) {
@@ -66,25 +93,55 @@ export function EditorPage() {
           imageIds,
         });
 
-        if (imageIds.length > 0 && uploadedImages.length === 0) {
-          console.log('[EditorPage] Fetching images by IDs');
-          const images = await apiClient.getImagesByIds(imageIds);
-          console.log('[EditorPage] Images fetched', { count: images.length });
-          addImages(images);
+        if (imageIds.length > 0) {
+          const existingImageIds = new Set(uploadedImages.map(img => img.id));
+          const missingImageIds = imageIds.filter(id => !existingImageIds.has(id));
+
+          if (missingImageIds.length > 0) {
+            setIsLoadingImages(true);
+            try {
+              console.log('[EditorPage] Fetching missing images by IDs', { missingImageIds });
+              const images = await apiClient.getImagesByIds(missingImageIds);
+              console.log('[EditorPage] Images fetched', { count: images.length });
+              addImagesRef.current(images);
+              hasLoadedImagesRef.set(draftId, true);
+            } catch (imageErr) {
+              console.error('[EditorPage] Error fetching images', imageErr);
+              toastRef.current.error(imageErr);
+            } finally {
+              setIsLoadingImages(false);
+            }
+          } else {
+            console.log('[EditorPage] All images already in context');
+            hasLoadedImagesRef.set(draftId, true);
+          }
+        } else {
+          hasLoadedImagesRef.set(draftId, true);
         }
       } catch (err) {
         console.error('[EditorPage] Error loading data', err);
-        toast.error(err);
+        if (err instanceof Error && 'status' in err) {
+          const status = (err as { status: number }).status;
+          if (status === 401) {
+            console.warn('[EditorPage] 401 Unauthorized - authentication may not be ready');
+            toastRef.current.error('Error de autenticación. Por favor, recarga la página.');
+          } else {
+            toastRef.current.error(err);
+          }
+        } else {
+          toastRef.current.error(err);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [draftId, addImages, uploadedImages.length, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, isLoaded, isSignedIn, waitForToken]);
 
   useEffect(() => {
-    if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading || isReplacingImageRef.current) {
+    if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading || isReplacingImageRef.current || isLoadingImages) {
       if (isReplacingImageRef.current) {
         console.log('[EditorPage] Skipping auto-assign - image replacement in progress');
       }
@@ -167,25 +224,44 @@ export function EditorPage() {
         setDraft(updatedDraft);
       } catch (err) {
         console.error('Failed to auto-assign images:', err);
-        toast.error(err);
+        toastRef.current.error(err);
       } finally {
         setIsSaving(false);
       }
     };
 
     autoAssign();
-  }, [draft, layout, uploadedImages, draftId, isLoading, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.id, layout?.slots.length, uploadedImages.length, draftId, isLoading, isLoadingImages]);
 
+
+  const hasAllImages = (): boolean => {
+    if (!draft || !layout) return false;
+
+    const allSlots = layout.slots;
+    const slotsWithImages = new Set(
+      draft.layoutItems
+        .filter(item => item.imageId)
+        .map(item => item.slotId)
+    );
+
+    return allSlots.every(slot => slotsWithImages.has(slot.id));
+  };
 
   const handleContinue = () => {
-    if (draftId) {
+    if (draftId && hasAllImages()) {
       navigate(`/draft/${draftId}/confirm`);
     }
   };
 
   const handleBack = () => {
-    if (draftId) {
+    const fromPath = location.state?.from as string | undefined;
+    if (fromPath && fromPath.startsWith('/account/my-designs')) {
+      navigate('/account/my-designs');
+    } else if (draftId) {
       navigate(`/draft/${draftId}/upload`);
+    } else {
+      navigate(-1);
     }
   };
 
@@ -265,7 +341,7 @@ export function EditorPage() {
       });
     } catch (err) {
       console.error('[EditorPage] Failed to replace image', err);
-      toast.error(err);
+      toastRef.current.error(err);
     } finally {
       // Clean up
       URL.revokeObjectURL(previewUrl);
@@ -284,9 +360,9 @@ export function EditorPage() {
         console.log('[EditorPage] Image replacement complete, auto-assign re-enabled');
       }, 1000);
     }
-  }, [draft, draftId, addImages, toast]);
+  }, [draft, draftId, addImages]);
 
-  const [titleValue, setTitleValue] = useState<string>('Título del borrador');
+  const [titleValue, setTitleValue] = useState<string>('Agregar título');
   const [isSaved, setIsSaved] = useState(false);
   const [isEditingMainTitle, setIsEditingMainTitle] = useState(false);
   const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -295,7 +371,7 @@ export function EditorPage() {
 
   useEffect(() => {
     if (draft?.title !== undefined) {
-      setTitleValue(draft.title || 'Título del borrador');
+      setTitleValue(draft.title || 'Agregar título');
     }
   }, [draft?.title]);
 
@@ -349,18 +425,17 @@ export function EditorPage() {
           setIsSaved(false);
         }, 2000);
       } catch (err) {
-        console.error('[EditorPage] Failed to auto-save title', err);
-        toast.error(err);
+        toastRef.current.error(err);
         // Revert on error
-        setTitleValue(draft.title || 'Título del borrador');
+        setTitleValue(draft.title || 'Agregar título');
         setIsSaved(false);
       } finally {
         setIsSaving(false);
       }
     }, 2000); // 3 seconds delay
-  }, [draft, draftId, toast]);
+  }, [draft, draftId]);
 
-  if (isLoading) {
+  if (isLoading || isLoadingImages) {
     return (
       <>
         <DraftEditorHeader />
@@ -400,7 +475,7 @@ export function EditorPage() {
         onBack={handleBack}
         onContinue={handleContinue}
         continueLabel="Continuar"
-        continueDisabled={isSaving}
+        continueDisabled={isSaving || !hasAllImages()}
         isSaving={isSaving}
         isSaved={isSaved}
       />
@@ -426,14 +501,14 @@ export function EditorPage() {
                     }
                   }}
                   maxLength={60}
-                  className="text-3xl text-gray-900 break-all bg-transparent border-b-2 border-gray-400 outline-none focus:border-gray-600 transition-colors"
+                  className="w-full text-3xl text-gray-900 break-all bg-transparent border-b-2 border-gray-400 outline-none focus:border-gray-600 transition-colors"
                 />
               ) : (
                 <h2
                   onClick={() => setIsEditingMainTitle(true)}
                   className="text-3xl text-gray-900 break-all cursor-pointer hover:text-gray-700 transition-colors"
                 >
-                  {titleValue || 'Título del borrador'}
+                  {titleValue || 'Agregar título'}
                   <Pencil className="inline-block ml-2 h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h2>
               )}
@@ -441,6 +516,13 @@ export function EditorPage() {
             <p className="text-muted-foreground mt-2 text-sm">
               Haz clic en una imagen para cambiarla.
             </p>
+            {!hasAllImages() && (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  Agrega imágenes a todos los espacios para continuar.
+                </p>
+              </div>
+            )}
           </div>
           <CalendarEditor
             layout={layout}

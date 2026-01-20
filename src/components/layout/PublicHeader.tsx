@@ -1,10 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
+import { isSafari } from '@/utils/browser';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { Palette, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui';
 
 export function PublicHeader() {
   const location = useLocation();
+  const isSafariBrowser = isSafari();
 
   const isActive = (path: string) => {
     return location.pathname.startsWith(path);
@@ -22,7 +24,7 @@ export function PublicHeader() {
                 className="h-8 md:h-10"
               />
             </Link>
-            <nav className="hidden md:flex items-center gap-6">
+            {/* <nav className="hidden md:flex items-center gap-6">
               <Link
                 to="/product/calendar"
                 className={`text-sm font-medium transition-colors ${isActive('/product/calendar')
@@ -32,11 +34,17 @@ export function PublicHeader() {
               >
                 Inicio
               </Link>
-            </nav>
+            </nav> */}
           </div>
           <div className="flex items-center gap-2">
             <SignedOut>
-              <SignInButton mode="modal">
+              <SignInButton
+                mode={isSafariBrowser ? "redirect" : "modal"}
+                {...(isSafariBrowser
+                  ? { redirectUrl: window.location.href }
+                  : {}
+                )}
+              >
                 <Button variant="default" size="sm">
                   Iniciar Sesión
                 </Button>

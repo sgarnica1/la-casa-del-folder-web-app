@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth, SignInButton } from '@clerk/clerk-react';
+import { SignInButton } from '@clerk/clerk-react';
 import { Button, Loading } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
-
-const MAX_TOKEN_RETRIES = 10;
-const TOKEN_RETRY_DELAY_MS = 200;
+import { useWaitForToken } from '@/hooks/useWaitForToken';
+import { isSafari } from '@/utils/browser';
 
 const HARDCODED_PRODUCT_ID = 'calendar';
 const HARDCODED_TEMPLATE_ID = 'calendar-template';
@@ -16,37 +15,12 @@ const PENDING_DRAFT_CREATE_KEY = 'product_pending_draft_create';
 export function ProductDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isSignedIn, isLoaded, getToken } = useAuth();
+  const { waitForToken, isSignedIn, isLoaded } = useWaitForToken();
   const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
   const hasAttemptedAutoCreate = useRef(false);
   const prevIsSignedIn = useRef<boolean | undefined>(undefined);
-
-  // Wait for token to be available
-  const waitForToken = useCallback(async (): Promise<string | null> => {
-    if (!isLoaded || !isSignedIn) {
-      return null;
-    }
-
-    for (let i = 0; i < MAX_TOKEN_RETRIES; i++) {
-      try {
-        const token = await getToken();
-        if (token) {
-          console.log('[ProductDetailPage] Token obtained after', i + 1, 'attempt(s)');
-          return token;
-        }
-      } catch (error) {
-        console.warn(`[ProductDetailPage] Token retry ${i + 1}/${MAX_TOKEN_RETRIES}:`, error);
-      }
-
-      if (i < MAX_TOKEN_RETRIES - 1) {
-        await new Promise(resolve => setTimeout(resolve, TOKEN_RETRY_DELAY_MS));
-      }
-    }
-
-    console.error('[ProductDetailPage] Failed to get token after', MAX_TOKEN_RETRIES, 'attempts');
-    return null;
-  }, [isLoaded, isSignedIn, getToken]);
+  const isSafariBrowser = isSafari();
 
   const createDraftAndRedirect = useCallback(async () => {
     if (isLoading) return;
@@ -233,7 +207,13 @@ export function ProductDetailPage() {
           {/* Personalize Button */}
           <div>
             {isLoaded && !isSignedIn ? (
-              <SignInButton mode="modal" fallbackRedirectUrl={window.location.href}>
+              <SignInButton
+                mode={isSafariBrowser ? "redirect" : "modal"}
+                {...(isSafariBrowser
+                  ? { redirectUrl: window.location.href }
+                  : { fallbackRedirectUrl: window.location.href }
+                )}
+              >
                 <Button
                   size="lg"
                   className="w-full"
