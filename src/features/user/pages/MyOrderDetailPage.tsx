@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
+import { useWaitForToken } from '@/hooks/useWaitForToken';
 import { CalendarEditor } from '@/components/product/CalendarEditor';
 import type { Layout, DesignSnapshot, DesignSnapshotLayoutItem, LayoutItem } from '@/types';
 
@@ -42,6 +43,7 @@ function formatCurrency(amount: number): string {
 export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { waitForToken, isLoaded, isSignedIn } = useWaitForToken();
   const [order, setOrder] = useState<{
     id: string;
     totalAmount: number;
@@ -62,7 +64,23 @@ export function MyOrderDetailPage() {
   useEffect(() => {
     if (!id) return;
 
+    if (!isLoaded) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      setIsLoading(false);
+      return;
+    }
+
     const loadData = async () => {
+      const token = await waitForToken();
+      if (!token) {
+        console.warn('[MyOrderDetailPage] No token available, cannot load order');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const orderData = await apiClient.getMyOrderById(id);
         setOrder({
@@ -95,6 +113,9 @@ export function MyOrderDetailPage() {
           } else if (status === 404) {
             toast.error('Pedido no encontrado');
             navigate('/account/order/history', { replace: true });
+          } else if (status === 401) {
+            console.warn('[MyOrderDetailPage] 401 Unauthorized - authentication may not be ready');
+            toast.error('Error de autenticación. Por favor, recarga la página.');
           } else {
             toast.error(err);
           }
@@ -107,25 +128,29 @@ export function MyOrderDetailPage() {
     };
 
     loadData();
-  }, [id, navigate, toast]);
+  }, [id, isLoaded, isSignedIn, waitForToken, navigate, toast]);
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Skeleton className="h-8 w-48 mb-6" />
-        <Skeleton className="h-96 w-full" />
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <Skeleton className="h-96 w-full" />
+        </div>
       </div>
     );
   }
 
   if (!order || !layout) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">Pedido no encontrado</p>
-          </CardContent>
-        </Card>
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <Card>
+            <CardContent className="p-12 text-center">
+              <p className="text-muted-foreground">Pedido no encontrado</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -133,12 +158,14 @@ export function MyOrderDetailPage() {
   const firstItem = order.items[0];
   if (!firstItem) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">El pedido no tiene items</p>
-          </CardContent>
-        </Card>
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <Card>
+            <CardContent className="p-12 text-center">
+              <p className="text-muted-foreground">El pedido no tiene items</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -162,55 +189,53 @@ export function MyOrderDetailPage() {
     }));
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-6">
-        <Button variant="ghost" onClick={() => navigate('/account/order/history')} className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
-        </Button>
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
-              {snapshot.title || 'Diseño sin título'}
-            </h1>
-            <div className="flex items-center gap-2">
-              <StatusBadge status={order.orderStatus} />
+    <div className="w-full bg-gray-50 min-h-screen">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-6">
+          <Button variant="ghost" onClick={() => navigate('/account/order/history')} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver
+          </Button>
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                {snapshot.title || 'Diseño sin título'}
+              </h1>
+              <div className="flex items-center gap-2">
+                <StatusBadge status={order.orderStatus} />
+              </div>
             </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Fecha: {formatDate(order.createdAt)}
-          </div>
-          <div className="text-xl font-semibold">
-            Total: {formatCurrency(order.totalAmount)}
+            <div className="text-sm text-muted-foreground">
+              Fecha: {formatDate(order.createdAt)}
+            </div>
+            <div className="text-xl font-semibold">
+              Total: {formatCurrency(order.totalAmount)}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold mb-2">Producto</h2>
-              <p className="text-muted-foreground">{firstItem.productNameSnapshot}</p>
-              <p className="text-sm text-muted-foreground mt-1">Cantidad: {firstItem.quantity}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold mb-2">Producto</h2>
+                <p className="text-muted-foreground">{firstItem.productNameSnapshot}</p>
+                <p className="text-sm text-muted-foreground mt-1">Cantidad: {firstItem.quantity}</p>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Diseño</h2>
-            <CalendarEditor
-              layout={layout}
-              layoutItems={layoutItems}
-              images={images}
-              year={2026}
-              title={snapshot.productId || 'Calendario'}
-              isLocked={true}
-              layoutMode="grid"
-            />
-          </CardContent>
-        </Card>
+          <CalendarEditor
+            layout={layout}
+            layoutItems={layoutItems}
+            images={images}
+            year={2026}
+            title={snapshot.productId || 'Calendario'}
+            isLocked={true}
+            layoutMode="grid"
+          />
+
+        </div>
       </div>
     </div>
   );

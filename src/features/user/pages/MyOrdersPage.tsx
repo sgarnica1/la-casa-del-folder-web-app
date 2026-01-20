@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
+import { useWaitForToken } from '@/hooks/useWaitForToken';
 
 interface OrderSummary {
   id: string;
@@ -51,19 +52,44 @@ function getOrderTitle(title: string | null): string {
 
 export function MyOrdersPage() {
   const navigate = useNavigate();
+  const { waitForToken, isLoaded, isSignedIn } = useWaitForToken();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
 
   useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      setIsLoading(false);
+      return;
+    }
+
     const loadOrders = async () => {
+      const token = await waitForToken();
+      if (!token) {
+        console.warn('[MyOrdersPage] No token available, cannot load orders');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const data = await apiClient.getMyOrders();
         setOrders(data);
       } catch (err: unknown) {
-        if (err instanceof Error && 'status' in err && (err as { status: number }).status === 403) {
-          toast.error('No tienes acceso a este recurso');
-          navigate('/', { replace: true });
+        if (err instanceof Error && 'status' in err) {
+          const status = (err as { status: number }).status;
+          if (status === 403) {
+            toast.error('No tienes acceso a este recurso');
+            navigate('/', { replace: true });
+          } else if (status === 401) {
+            console.warn('[MyOrdersPage] 401 Unauthorized - authentication may not be ready');
+            toast.error('Error de autenticación. Por favor, recarga la página.');
+          } else {
+            toast.error(err);
+          }
         } else {
           toast.error(err);
         }
@@ -73,23 +99,25 @@ export function MyOrdersPage() {
     };
 
     loadOrders();
-  }, [navigate, toast]);
+  }, [isLoaded, isSignedIn, waitForToken, navigate, toast]);
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-48" />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <Skeleton className="h-6 w-32 mb-2" />
-                  <Skeleton className="h-4 w-24 mb-4" />
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
-            ))}
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardContent className="p-6">
+                    <Skeleton className="h-6 w-32 mb-2" />
+                    <Skeleton className="h-4 w-24 mb-4" />
+                    <Skeleton className="h-10 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -97,60 +125,62 @@ export function MyOrdersPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Mis Pedidos</h1>
-        <p className="text-muted-foreground">Consulta el estado de tus pedidos</p>
-      </div>
-
-      {orders.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">No tienes pedidos aún</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {orders.map((order) => (
-            <Card key={order.id}>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {order.coverUrl && (
-                    <div className="w-full h-48 rounded-md overflow-hidden border bg-muted mb-4">
-                      <img
-                        src={order.coverUrl}
-                        alt={getOrderTitle(order.title)}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">
-                      {getOrderTitle(order.title)}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <StatusBadge status={order.status} />
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {formatDate(order.createdAt)}
-                    </p>
-                    <p className="text-lg font-semibold">
-                      {formatCurrency(order.total)}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => navigate(`/account/order/${order.id}`)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Ver pedido
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+    <div className="w-full bg-gray-50 min-h-screen">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">Mis Pedidos</h1>
+          <p className="text-muted-foreground">Consulta el estado de tus pedidos</p>
         </div>
-      )}
+
+        {orders.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <p className="text-muted-foreground">No tienes pedidos aún</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {orders.map((order) => (
+              <Card key={order.id}>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    {order.coverUrl && (
+                      <div className="w-full h-48 rounded-md overflow-hidden border bg-muted mb-4">
+                        <img
+                          src={order.coverUrl}
+                          alt={getOrderTitle(order.title)}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-lg mb-2">
+                        {getOrderTitle(order.title)}
+                      </h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <StatusBadge status={order.status} />
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {formatDate(order.createdAt)}
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {formatCurrency(order.total)}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => navigate(`/account/order/${order.id}`)}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Ver pedido
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

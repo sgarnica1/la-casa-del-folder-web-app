@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
+import { useWaitForToken } from '@/hooks/useWaitForToken';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
 import { CalendarEditor } from '@/components/product/CalendarEditor';
 import type { Draft, Layout } from '@/types';
@@ -31,6 +32,7 @@ function StatusBadge({ state }: { state: string }) {
 export function MyDraftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { waitForToken, isLoaded, isSignedIn } = useWaitForToken();
   const { images: uploadedImages, addImages } = useUploadedImages();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -40,7 +42,23 @@ export function MyDraftDetailPage() {
   useEffect(() => {
     if (!id) return;
 
+    if (!isLoaded) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      setIsLoading(false);
+      return;
+    }
+
     const loadData = async () => {
+      const token = await waitForToken();
+      if (!token) {
+        console.warn('[MyDraftDetailPage] No token available, cannot load draft');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const [draftData, layoutData] = await Promise.all([
           apiClient.getMyDraftById(id),
@@ -69,6 +87,9 @@ export function MyDraftDetailPage() {
           } else if (status === 404) {
             toast.error('Diseño no encontrado');
             navigate('/account/my-designs', { replace: true });
+          } else if (status === 401) {
+            console.warn('[MyDraftDetailPage] 401 Unauthorized - authentication may not be ready');
+            toast.error('Error de autenticación. Por favor, recarga la página.');
           } else {
             toast.error(err);
           }
@@ -81,25 +102,29 @@ export function MyDraftDetailPage() {
     };
 
     loadData();
-  }, [id, navigate, toast, addImages]);
+  }, [id, isLoaded, isSignedIn, waitForToken, navigate, toast, addImages]);
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Skeleton className="h-8 w-48 mb-6" />
-        <Skeleton className="h-96 w-full" />
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <Skeleton className="h-96 w-full" />
+        </div>
       </div>
     );
   }
 
   if (!draft || !layout) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">Diseño no encontrado</p>
-          </CardContent>
-        </Card>
+      <div className="w-full bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <Card>
+            <CardContent className="p-12 text-center">
+              <p className="text-muted-foreground">Diseño no encontrado</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -107,34 +132,36 @@ export function MyDraftDetailPage() {
   const isLocked = draft.status === 'locked' || draft.status === 'ordered';
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-6">
-        <Button variant="ghost" onClick={() => navigate('/account/my-designs')} className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
-        </Button>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{draft.title || 'Sin título'}</h1>
-            <StatusBadge state={draft.status === 'draft' ? 'editing' : draft.status} />
+    <div className="w-full bg-gray-50 min-h-screen">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-6">
+          <Button variant="ghost" onClick={() => navigate('/account/my-designs')} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{draft.title || 'Sin título'}</h1>
+              <StatusBadge state={draft.status === 'draft' ? 'editing' : draft.status} />
+            </div>
+            {!isLocked && (
+              <Button onClick={() => navigate(`/draft/${id}/edit`)}>
+                Editar diseño
+              </Button>
+            )}
           </div>
-          {!isLocked && (
-            <Button onClick={() => navigate(`/draft/${id}/edit`)}>
-              Editar diseño
-            </Button>
-          )}
         </div>
-      </div>
 
-      <CalendarEditor
-        layout={layout}
-        layoutItems={draft.layoutItems}
-        images={uploadedImages}
-        year={2026}
-        title={draft.title || 'Sin título'}
-        isLocked={isLocked}
-        layoutMode="grid"
-      />
+        <CalendarEditor
+          layout={layout}
+          layoutItems={draft.layoutItems}
+          images={uploadedImages}
+          year={2026}
+          title={draft.title || 'Sin título'}
+          isLocked={isLocked}
+          layoutMode="grid"
+        />
+      </div>
     </div>
   );
 }

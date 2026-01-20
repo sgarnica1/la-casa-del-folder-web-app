@@ -295,7 +295,7 @@ export function UploadPage() {
                     <span className="block text-2xl text-muted-foreground mt-2">0 / 20 fotos</span>
                   </h2>
                   <p className="text-muted-foreground">
-                    Selecciona <strong>{requiredCount} imágenes</strong> para empezar.
+                    Selecciona mínimo <strong>{requiredCount}</strong>, máximo <strong>{maxImages}</strong> imágenes para empezar.
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Puedes cambiarlas más adelante
@@ -331,7 +331,7 @@ export function UploadPage() {
                   </span>
                 </h2>
                 <p className="text-muted-foreground mt-2">
-                  Selecciona <strong>{requiredCount} imágenes</strong> para empezar
+                  Selecciona mínimo <strong>{requiredCount}</strong>, máximo <strong>{maxImages}</strong> imágenes para empezar.
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Puedes cambiarlas más adelante
