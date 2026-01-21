@@ -78,7 +78,7 @@ async function downloadImagesAsZip(
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   const link = document.createElement('a');
   link.href = window.URL.createObjectURL(zipBlob);
-  link.download = `pedido-${orderId.slice(0, 8)}-imagenes.zip`;
+  link.download = `pedido-${orderId.slice(0, 8)}-fotoes.zip`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -202,9 +202,9 @@ export function OrderDetailPage() {
           await downloadImagesAsZip(sortedItems, imageMap, order.id);
         }
       }
-      toast.success('Descarga de imágenes completada');
+      toast.success('Descarga de fotos completada');
     } catch (error) {
-      toast.error('Error al descargar imágenes');
+      toast.error('Error al descargar fotos');
     } finally {
       setIsDownloading(false);
     }
@@ -243,7 +243,7 @@ export function OrderDetailPage() {
           className="bg-black hover:bg-black/90 text-white flex items-center gap-2"
         >
           <Download className="h-4 w-4" />
-          {isDownloading ? 'Descargando...' : 'Descargar Todas las Imágenes (ZIP)'}
+          {isDownloading ? 'Descargando...' : 'Descargar Todas las fotos (ZIP)'}
         </Button>
       </div>
 
@@ -469,9 +469,9 @@ function LayoutItemRenderer({
     return (
       <div className="border rounded-lg p-3 bg-muted/20">
         <div className="text-xs font-semibold text-primary mb-2">{monthLabel}</div>
-        <div className="text-xs text-muted-foreground mb-2">Slot de Imagen</div>
+        <div className="text-xs text-muted-foreground mb-2">Slot de foto</div>
         <div className="w-full h-32 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
-          Sin imagen
+          Sin foto
         </div>
         <div className="text-xs text-muted-foreground mt-2">Índice: {item.layoutIndex}</div>
       </div>
@@ -543,7 +543,7 @@ function ImageRenderer({
     return (
       <div className="relative overflow-hidden rounded">
         <div className="w-full h-32 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground p-2 text-center">
-          Imagen no encontrada
+          foto no encontrada
         </div>
         <div className="text-xs text-muted-foreground mt-1">
           {image.width}x{image.height}
@@ -566,7 +566,7 @@ function ImageRenderer({
             const errorDiv = document.createElement('div');
             errorDiv.className =
               'w-full h-32 bg-destructive/10 flex items-center justify-center text-xs text-destructive';
-            errorDiv.textContent = 'Error al cargar imagen';
+            errorDiv.textContent = 'Error al cargar foto';
             parent.appendChild(errorDiv);
           }
         }}
@@ -574,7 +574,7 @@ function ImageRenderer({
       <button
         onClick={handleDownload}
         className="absolute top-2 right-2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Descargar imagen"
+        title="Descargar foto"
       >
         <Download className="h-4 w-4 text-gray-700" />
       </button>
