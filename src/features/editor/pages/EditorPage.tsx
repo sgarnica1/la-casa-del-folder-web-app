@@ -23,6 +23,7 @@ export function EditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingImages, setIsLoadingImages] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [uploadingSlots, setUploadingSlots] = useState<Map<string, { previewUrl: string }>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentReplacingSlotId = useRef<string | null>(null);
@@ -123,12 +124,29 @@ export function EditorPage() {
             }
           } else {
             console.log('[EditorPage] All images already in context');
-            setIsLoadingImages(false);
+            // Check if we need to auto-assign images before setting loading to false
+            const needsAutoAssign = uploadedImages.some((img) => !draftData.layoutItems.some((item) => item.imageId === img.id));
+
+            if (needsAutoAssign) {
+              console.log('[EditorPage] Images need to be auto-assigned, keeping loading state');
+              // Keep isLoadingImages true - auto-assign will set it to false when done
+            } else {
+              setIsLoadingImages(false);
+            }
             hasLoadedImagesRef.set(draftId, true);
           }
         } else {
           console.log('[EditorPage] No images to load');
-          setIsLoadingImages(false);
+          // Check if we need to auto-assign images before setting loading to false
+          const needsAutoAssign = uploadedImages.length > 0 &&
+            uploadedImages.some((img) => !draftData.layoutItems.some((item) => item.imageId === img.id));
+
+          if (needsAutoAssign) {
+            console.log('[EditorPage] Images need to be auto-assigned, keeping loading state');
+            // Keep isLoadingImages true - auto-assign will set it to false when done
+          } else {
+            setIsLoadingImages(false);
+          }
           hasLoadedImagesRef.set(draftId, true);
         }
       } catch (err) {
@@ -155,7 +173,7 @@ export function EditorPage() {
   }, [draftId, isLoaded, isSignedIn, waitForToken]);
 
   useEffect(() => {
-    if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading || isReplacingImageRef.current || isLoadingImages) {
+    if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading || isReplacingImageRef.current || isAutoAssigning) {
       if (isReplacingImageRef.current) {
         console.log('[EditorPage] Skipping auto-assign - image replacement in progress');
       }
@@ -231,6 +249,7 @@ export function EditorPage() {
 
       try {
         setIsSaving(true);
+        setIsAutoAssigning(true);
         const updatedDraft = await apiClient.updateDraft(draftId, {
           layoutItems: updatedItems,
         });
@@ -241,12 +260,14 @@ export function EditorPage() {
         toastRef.current.error(err);
       } finally {
         setIsSaving(false);
+        setIsAutoAssigning(false);
+        setIsLoadingImages(false);
       }
     };
 
     autoAssign();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft?.id, layout?.slots.length, uploadedImages.length, draftId, isLoading, isLoadingImages]);
+  }, [draft?.id, layout?.slots.length, uploadedImages.length, draftId, isLoading, isAutoAssigning]);
 
 
   const hasAllImages = (): boolean => {
@@ -449,7 +470,7 @@ export function EditorPage() {
     }, 2000); // 3 seconds delay
   }, [draft, draftId]);
 
-  if (isLoading || isLoadingImages) {
+  if (isLoading || isLoadingImages || isAutoAssigning) {
     return (
       <>
         <DraftEditorHeader />
