@@ -186,7 +186,7 @@ export function UploadPage() {
 
       if (successfulImages.length > 0) {
         toast.success(
-          `${successfulImages.length} foto${successfulImages.length !== 1 ? 'es' : ''} subida${successfulImages.length !== 1 ? 's' : ''} exitosamente`
+          `${successfulImages.length} foto${successfulImages.length !== 1 ? 's' : ''} subida${successfulImages.length !== 1 ? 's' : ''} exitosamente`
         );
       }
 
