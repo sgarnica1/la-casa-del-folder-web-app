@@ -78,7 +78,7 @@ async function downloadImagesAsZip(
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   const link = document.createElement('a');
   link.href = window.URL.createObjectURL(zipBlob);
-  link.download = `pedido-${orderId.slice(0, 8)}-fotoes.zip`;
+  link.download = `pedido-${orderId.slice(0, 8)}-fotos.zip`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
