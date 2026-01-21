@@ -38,6 +38,6 @@ describe('EditorPage', () => {
 
   it('should render editor page', () => {
     render(<EditorPage />, { wrapper });
-    expect(screen.getByText(/asignar imágenes/i)).toBeInTheDocument();
+    expect(screen.getByText(/asignar fotos/i)).toBeInTheDocument();
   });
 });

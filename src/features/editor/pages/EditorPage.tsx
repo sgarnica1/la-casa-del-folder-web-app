@@ -21,7 +21,7 @@ export function EditorPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const [isLoadingImages, setIsLoadingImages] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingSlots, setUploadingSlots] = useState<Map<string, { previewUrl: string }>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,6 +33,13 @@ export function EditorPage() {
   const toastRef = useRef(toast);
 
   useEffect(() => {
+    console.log("isLoading Editor Page", isLoading)
+    console.log("isLoaded Editor Page", isLoaded)
+    console.log("isLoadingImages Editor Page", isLoadingImages)
+  }, [isLoading, isLoaded, isLoadingImages])
+
+  useEffect(() => {
+    console.log("useEffect addImagesRef")
     addImagesRef.current = addImages;
     toastRef.current = toast;
   }, [addImages, toast]);
@@ -52,6 +59,7 @@ export function EditorPage() {
     autoAssignRef.current = false;
 
     const loadData = async () => {
+      console.log("loadData Editor Page")
       const token = await waitForToken();
       if (!token) {
         console.warn('[EditorPage] No token available, cannot load draft');
@@ -113,6 +121,7 @@ export function EditorPage() {
             }
           } else {
             console.log('[EditorPage] All images already in context');
+            setIsLoadingImages(false);
             hasLoadedImagesRef.set(draftId, true);
           }
         } else {
@@ -514,12 +523,12 @@ export function EditorPage() {
               )}
             </div>
             <p className="text-muted-foreground mt-2 text-sm">
-              Haz clic en una imagen para cambiarla.
+              Haz clic en una foto para cambiarla.
             </p>
-            {!hasAllImages() && (
+            {!hasAllImages() && !isLoadingImages && (
               <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  Agrega imágenes a todos los espacios para continuar.
+                  Agrega fotos a todos los espacios para continuar.
                 </p>
               </div>
             )}

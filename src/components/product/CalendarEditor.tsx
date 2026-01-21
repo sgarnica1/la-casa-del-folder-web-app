@@ -171,9 +171,9 @@ export function CalendarEditor({
 
     return (
       <div key={slot.id} className={layoutMode === 'grid' ? 'h-full flex' : 'flex justify-center mb-8'}>
-        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-lg shadow-md p-8`}>
+        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-xl shadow-md p-4 lg:p-8`}>
           <div
-            className={`relative w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-100 mb-6 flex-shrink-0 ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-gray-300 transition-colors'}`}
+            className={`relative w-full aspect-[4/3] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-gray-300 transition-colors'}`}
             onClick={() => handleSlotClick(slot.id)}
           >
             {uploadingSlots.has(slot.id) ? (
@@ -181,7 +181,7 @@ export function CalendarEditor({
                 <img
                   src={uploadingSlots.get(slot.id)!.previewUrl}
                   alt={`Uploading ${monthName}`}
-                  className="w-full h-full object-cover opacity-70"
+                  className="w-full h-full object-cover opacity-70 border-none"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-white/30">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
@@ -235,7 +235,7 @@ export function CalendarEditor({
                   <div className="bg-white rounded-lg p-4 border border-gray-200">
                     <div className="grid grid-cols-7 gap-1">
                       {DAY_NAMES.map((day, index) => (
-                        <div key={`day-${index}`} className="text-center text-xs font-semibold text-gray-600 py-2">
+                        <div key={`day-${index}`} className="text-center text-sm font-bold text-black py-2">
                           {day}
                         </div>
                       ))}

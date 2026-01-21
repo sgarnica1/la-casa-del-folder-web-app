@@ -177,7 +177,7 @@ export function MyDraftsPage() {
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
                           <Image className="h-12 w-12 mb-2 opacity-50" />
-                          <span className="text-sm">Sin imagen</span>
+                          <span className="text-sm">Sin foto</span>
                         </div>
                       )}
                     </div>
