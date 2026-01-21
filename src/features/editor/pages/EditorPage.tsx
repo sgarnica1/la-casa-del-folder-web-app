@@ -53,6 +53,7 @@ export function EditorPage() {
 
     if (!isSignedIn) {
       setIsLoading(false);
+      setIsLoadingImages(false);
       return;
     }
 
@@ -64,6 +65,7 @@ export function EditorPage() {
       if (!token) {
         console.warn('[EditorPage] No token available, cannot load draft');
         setIsLoading(false);
+        setIsLoadingImages(false);
         return;
       }
 
@@ -125,10 +127,13 @@ export function EditorPage() {
             hasLoadedImagesRef.set(draftId, true);
           }
         } else {
+          console.log('[EditorPage] No images to load');
+          setIsLoadingImages(false);
           hasLoadedImagesRef.set(draftId, true);
         }
       } catch (err) {
         console.error('[EditorPage] Error loading data', err);
+        setIsLoadingImages(false);
         if (err instanceof Error && 'status' in err) {
           const status = (err as { status: number }).status;
           if (status === 401) {
