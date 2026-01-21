@@ -38,6 +38,6 @@ describe('UploadPage', () => {
 
   it('should render upload page', () => {
     render(<UploadPage />, { wrapper });
-    expect(screen.getByText(/subir imágenes/i)).toBeInTheDocument();
+    expect(screen.getByText(/subir fotos/i)).toBeInTheDocument();
   });
 });

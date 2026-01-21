@@ -28,24 +28,18 @@ export function UploadPage() {
   const toast = useToast();
 
   useEffect(() => {
-    console.log('[UploadPage] Mounted/Updated', { draftId });
-
     if (!draftId) {
-      console.log('[UploadPage] No draftId, returning');
       return;
     }
 
     const loadData = async () => {
-      console.log('[UploadPage] Loading data for draft:', draftId);
       try {
         const [, layoutData] = await Promise.all([
           apiClient.getDraft(draftId),
           apiClient.getLayout('calendar-template'),
         ]);
-        console.log('[UploadPage] Data loaded successfully');
         setLayout(layoutData);
       } catch (err) {
-        console.error('[UploadPage] Error loading data:', err);
         toast.error(err);
       } finally {
         setIsLoading(false);
@@ -65,13 +59,13 @@ export function UploadPage() {
     const remainingSlots = MAX_IMAGES - currentImageCount;
 
     if (remainingSlots <= 0) {
-      sonnerToast.error(`Ya has alcanzado el límite de ${MAX_IMAGES} imágenes.`);
+      sonnerToast.error(`Ya has alcanzado el límite de ${MAX_IMAGES} fotos.`);
       event.target.value = '';
       return;
     }
 
     if (fileArray.length > remainingSlots) {
-      sonnerToast.error(`Solo puedes subir ${remainingSlots} imagen${remainingSlots !== 1 ? 'es' : ''} más (máximo ${MAX_IMAGES} total).`);
+      sonnerToast.error(`Solo puedes subir ${remainingSlots} foto${remainingSlots !== 1 ? 'es' : ''} más (máximo ${MAX_IMAGES} total).`);
       event.target.value = '';
       return;
     }
@@ -79,7 +73,7 @@ export function UploadPage() {
     const invalidFiles = fileArray.filter(file => !file.type.startsWith('image/'));
     if (invalidFiles.length > 0) {
       invalidFiles.forEach(() => {
-        sonnerToast.error(`Tipo de archivo inválido. Solo se permiten archivos de imagen.`);
+        sonnerToast.error(`Tipo de archivo inválido. Solo se permiten archivos de foto.`);
       });
       event.target.value = '';
       return;
@@ -91,18 +85,10 @@ export function UploadPage() {
     const newUploadingImages = new Map<number, UploadingImage>();
     const currentSlotIndex = uploadedImages.length;
 
-    console.log('[UploadPage] Starting upload', {
-      fileCount: fileArray.length,
-      currentSlotIndex,
-      currentUploadedCount: uploadedImages.length,
-      uploadingSlots: Array.from(uploadingImages.keys()),
-    });
-
     fileArray.forEach((file, index) => {
       const previewUrl = URL.createObjectURL(file);
       const slotIndex = currentSlotIndex + index;
       newUploadingImages.set(slotIndex, { file, previewUrl, slotIndex });
-      console.log('[UploadPage] Created preview for slot', { slotIndex, fileName: file.name });
     });
 
     // Merge with existing uploading images
@@ -111,7 +97,6 @@ export function UploadPage() {
       newUploadingImages.forEach((value, key) => {
         merged.set(key, value);
       });
-      console.log('[UploadPage] Total uploading slots after merge:', Array.from(merged.keys()));
       return merged;
     });
 
@@ -130,17 +115,14 @@ export function UploadPage() {
           const fileIndex = i + batchIndex;
           const slotIndex = currentSlotIndex + fileIndex;
           try {
-            console.log('[UploadPage] Starting upload for slot', { slotIndex, fileName: file.name });
             const result = await apiClient.uploadImage(file);
             const image: UploadedImage = { id: result.id, url: result.url };
-            console.log('[UploadPage] Upload successful for slot', { slotIndex, imageId: image.id });
             successfulImages.push(image);
 
             // Store upload order for positioning
             setUploadOrderMap((prev) => {
               const updated = new Map(prev);
               updated.set(slotIndex, image.id);
-              console.log('[UploadPage] Updated upload order map', { slotIndex, imageId: image.id, map: Array.from(updated.entries()) });
               return updated;
             });
             addImages([image]);
@@ -149,7 +131,6 @@ export function UploadPage() {
             setUploadingImages((prev) => {
               const updated = new Map(prev);
               updated.delete(slotIndex);
-              console.log('[UploadPage] Removed slot from uploading map', { slotIndex, remainingSlots: Array.from(updated.keys()) });
               return updated;
             });
 
@@ -161,18 +142,17 @@ export function UploadPage() {
 
             return { success: true, image, slotIndex };
           } catch (err) {
-            let errorMessage = 'Error al subir la imagen';
+            let errorMessage = 'Error al subir la foto';
             if (err instanceof Error) {
               const message = err.message.toLowerCase();
               if (message.includes('tipo de archivo') || message.includes('invalid file') || message.includes('file type')) {
-                errorMessage = 'Tipo de archivo inválido. Solo se permiten archivos de imagen.';
+                errorMessage = 'Tipo de archivo inválido. Solo se permiten archivos de foto.';
               } else if (message.includes('timeout')) {
                 errorMessage = 'Tiempo de espera agotado. Intenta nuevamente.';
               } else {
                 errorMessage = err.message;
               }
             }
-            console.error('[UploadPage] Upload failed for slot', { slotIndex, fileName: file.name, error: errorMessage });
             errors.push({ fileName: file.name, error: errorMessage, slotIndex });
 
             // Keep in uploading map on error so user can see which one failed
@@ -181,7 +161,6 @@ export function UploadPage() {
               setUploadingImages((prev) => {
                 const updated = new Map(prev);
                 updated.delete(slotIndex);
-                console.log('[UploadPage] Removed failed upload slot after timeout', { slotIndex });
                 return updated;
               });
             }, 5000);
@@ -207,7 +186,7 @@ export function UploadPage() {
 
       if (successfulImages.length > 0) {
         toast.success(
-          `${successfulImages.length} imagen${successfulImages.length !== 1 ? 'es' : ''} subida${successfulImages.length !== 1 ? 's' : ''} exitosamente`
+          `${successfulImages.length} foto${successfulImages.length !== 1 ? 'es' : ''} subida${successfulImages.length !== 1 ? 's' : ''} exitosamente`
         );
       }
 
@@ -226,10 +205,8 @@ export function UploadPage() {
   };
 
   const handleContinue = () => {
-    console.log('[UploadPage] handleContinue called', { draftId });
     if (draftId) {
       const targetUrl = `/draft/${draftId}/edit`;
-      console.log('[UploadPage] Navigating to:', targetUrl);
       navigate(targetUrl);
     }
   };
@@ -266,14 +243,11 @@ export function UploadPage() {
         {layout && (() => {
           const MAX_IMAGES = 20;
           const totalUploaded = Math.min(uploadedImages.length, MAX_IMAGES);
-          const totalWithUploading = Math.min(uploadedImages.length + uploadingImages.size, MAX_IMAGES);
+          // const totalWithUploading = Math.min(uploadedImages.length + uploadingImages.size, MAX_IMAGES);
           return (
-            <div className="flex flex-col text-sm text-muted-foreground">
+            <div className="flex flex-col text-sm text-black">
               <span className="font-medium">
-                {totalUploaded} / {totalWithUploading} fotos subidas
-              </span>
-              <span className="text-xs">
-                Mínimo {requiredCount} • Máximo {MAX_IMAGES}
+                {totalUploaded} / {requiredCount} fotos subidas
               </span>
             </div>
           );
@@ -290,15 +264,11 @@ export function UploadPage() {
             return (
               <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-5xl mb-6 text-primary">
-                    Subir imágenes
-                    <span className="block text-2xl text-muted-foreground mt-2">0 / 20 fotos</span>
+                  <h2 className="text-2xl md:text-3xl lg:text-4xl mb-6 text-black font-semibold">
+                    Selecciona {requiredCount} fotos para empezar
                   </h2>
-                  <p className="text-muted-foreground">
-                    Selecciona mínimo <strong>{requiredCount}</strong>, máximo <strong>{maxImages}</strong> imágenes para empezar.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Puedes cambiarlas más adelante
+                  <p className="text-md text-muted-foreground">
+                    No te preocupes, puedes cambiarlas más adelante.
                   </p>
                 </div>
                 <Button
@@ -312,7 +282,7 @@ export function UploadPage() {
                   variant="secondary"
                   className="w-auto"
                 >
-                  Seleccionar imágenes
+                  Seleccionar fotos
                 </Button>
               </div>
             );
@@ -324,39 +294,26 @@ export function UploadPage() {
           return (
             <div className="space-y-6">
               <div>
-                <h2 className="text-4xl text-primary">
-                  Subir imágenes
-                  <span className="block text-xl text-muted-foreground mt-2">
-                    {Math.min(uploadedImages.length, maxImages)} / {maxImages} fotos
-                  </span>
+                <h2 className="text-2xl md:text-3xl lg:text-4xl text-black font-semibold">
+                  Subir fotos
                 </h2>
                 <p className="text-muted-foreground mt-2">
-                  Selecciona mínimo <strong>{requiredCount}</strong>, máximo <strong>{maxImages}</strong> imágenes para empezar.
+                  Selecciona mínimo
+                  <strong className="text-primary"> {requiredCount}</strong> fotos para continuar.
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Puedes cambiarlas más adelante
+                <p className="text-sm text-muted-foreground mt-3">
+                  Puedes cambiarlas más adelante.
                 </p>
+
+                <span className="block text-sm md:text-lg text-primary mt-10 font-semibold">
+                  {Math.min(uploadedImages.length, maxImages)} / {requiredCount} fotos
+                </span>
               </div>
 
-              <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-                {/* Add More button placeholder at the beginning */}
-                {totalImages < maxImages && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById('image-upload-input') as HTMLInputElement;
-                      input?.click();
-                    }}
-                    disabled={isUploading}
-                    className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-center"
-                  >
-                    <Plus className="h-8 w-8 text-muted-foreground" />
-                  </button>
-                )}
-
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {/* Display images maintaining their positions */}
                 {(() => {
-                  const startIndex = 0; // Include cover in grid
+                  const startIndex = 0;
                   const slots: Array<{ type: 'uploaded' | 'uploading'; image?: UploadedImage; uploadingImage?: UploadingImage; index: number }> = [];
 
                   // Create a map of uploaded images by their upload position
@@ -380,25 +337,6 @@ export function UploadPage() {
                     }
                   });
 
-                  // Find the maximum index we need to display
-                  const maxUploadedIndex = uploadedImagesBySlot.size > 0
-                    ? Math.max(...Array.from(uploadedImagesBySlot.keys()))
-                    : -1;
-                  const maxUploadingIndex = uploadingImages.size > 0
-                    ? Math.max(...Array.from(uploadingImages.keys()))
-                    : -1;
-                  // Ensure we show all uploading images, even if they're beyond current uploaded count
-                  const maxIndex = Math.max(maxUploadedIndex, maxUploadingIndex, -1);
-
-                  console.log('[UploadPage] Rendering slots', {
-                    startIndex,
-                    maxUploadedIndex,
-                    maxUploadingIndex,
-                    maxIndex,
-                    uploadedSlots: Array.from(uploadedImagesBySlot.keys()),
-                    uploadingSlots: Array.from(uploadingImages.keys()),
-                  });
-
                   // Create a set of all indices that should be displayed
                   const indicesToDisplay = new Set<number>();
                   uploadedImagesBySlot.forEach((_, index) => indicesToDisplay.add(index));
@@ -417,11 +355,6 @@ export function UploadPage() {
                         slots.push({ type: 'uploading', uploadingImage: uploadingImg, index: i });
                       }
                     }
-                  });
-
-                  console.log('[UploadPage] Final slots array', {
-                    slotCount: slots.length,
-                    slots: slots.map(s => ({ type: s.type, index: s.index })),
                   });
 
                   return slots.map((slot) => {
@@ -453,6 +386,21 @@ export function UploadPage() {
                     return null;
                   });
                 })()}
+
+                {/* Add More button at the end, after all images */}
+                {totalImages < maxImages && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = document.getElementById('image-upload-input') as HTMLInputElement;
+                      input?.click();
+                    }}
+                    disabled={isUploading}
+                    className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-center"
+                  >
+                    <Plus className="h-8 w-8 text-muted-foreground" />
+                  </button>
+                )}
               </div>
             </div>
           );
