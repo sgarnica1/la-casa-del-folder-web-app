@@ -67,7 +67,7 @@ export function MyDraftsPage() {
 
       console.log('[MyDraftsPage] Token available, loading drafts...');
       try {
-        const data = await apiClient.getMyDrafts();
+        const data = await apiClient.drafts.getMyDrafts();
         console.log('[MyDraftsPage] Received drafts from API:', {
           count: data.length,
           drafts: data.map(d => ({
@@ -143,11 +143,26 @@ export function MyDraftsPage() {
         </div>
 
         {drafts.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <p className="text-muted-foreground">No tienes diseños aún</p>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="rounded-full bg-muted p-6">
+                <Image className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">No tienes diseños aún</h2>
+                <p className="text-muted-foreground text-sm max-w-md">
+                  Crea tu primer diseño personalizado y comienza a diseñar tu calendario
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => navigate('/product/calendar')}
+              size="lg"
+              className="mt-4"
+            >
+              Crear diseño
+            </Button>
+          </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {drafts.map((draft) => (
