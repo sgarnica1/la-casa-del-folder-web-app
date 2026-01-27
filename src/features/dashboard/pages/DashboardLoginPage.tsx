@@ -145,7 +145,7 @@ export function DashboardLoginPage() {
             appearance={{
               elements: {
                 rootBox: 'mx-auto',
-                footer: 'hidden', // Hide footer that might contain sign-up link
+                footer: 'hidden',
               },
             }}
             routing="path"
