@@ -486,7 +486,7 @@ export function EditorPage() {
           <div className="container mx-auto px-4 py-8 max-w-5xl">
             <div className="mb-6">
               <Skeleton className="h-10 w-64 mb-2" />
-              <Skeleton className="h-4 w-96" />
+              <Skeleton className="h-4 w-100" />
             </div>
             <div className="bg-white rounded-lg shadow-sm p-8">
               <div className="space-y-12">

@@ -10,6 +10,22 @@ import { CalendarEditor } from '@/components/product/CalendarEditor';
 import { useApiClient } from '@/hooks/useApiClient';
 import type { Draft, Layout } from '@/types';
 
+function useIsMdOrLarger() {
+  const [isMdOrLarger, setIsMdOrLarger] = useState(false);
+
+  useEffect(() => {
+    const checkSize = () => {
+      setIsMdOrLarger(window.innerWidth >= 768);
+    };
+
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
+
+  return isMdOrLarger;
+}
+
 const STATE_LABELS: Record<string, string> = {
   editing: 'Draft',
   locked: 'Bloqueado',
@@ -40,6 +56,7 @@ export function MyDraftDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isInCart, setIsInCart] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const isMdOrLarger = useIsMdOrLarger();
   const toast = useToast();
   useApiClient();
 
@@ -212,7 +229,7 @@ export function MyDraftDetailPage() {
           year={2026}
           title={draft.title || 'Sin título'}
           isLocked={isLocked}
-          layoutMode="grid"
+          layoutMode={isMdOrLarger ? "grid" : "vertical"}
         />
       </div>
     </div>
