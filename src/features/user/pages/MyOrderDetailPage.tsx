@@ -8,6 +8,22 @@ import { useWaitForToken } from '@/hooks/useWaitForToken';
 import { CalendarEditor } from '@/components/product/CalendarEditor';
 import type { Layout, DesignSnapshot, DesignSnapshotLayoutItem, LayoutItem } from '@/types';
 
+function useIsMdOrLarger() {
+  const [isMdOrLarger, setIsMdOrLarger] = useState(false);
+
+  useEffect(() => {
+    const checkSize = () => {
+      setIsMdOrLarger(window.innerWidth >= 768);
+    };
+
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
+
+  return isMdOrLarger;
+}
+
 const STATUS_LABELS: Record<string, string> = {
   new: 'Nuevo',
   in_production: 'En Producción',
@@ -59,6 +75,7 @@ export function MyOrderDetailPage() {
   } | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isMdOrLarger = useIsMdOrLarger();
   const toast = useToast();
 
   useEffect(() => {
@@ -232,7 +249,7 @@ export function MyOrderDetailPage() {
             year={2026}
             title={snapshot.productId || 'Calendario'}
             isLocked={true}
-            layoutMode="grid"
+            layoutMode={isMdOrLarger ? "grid" : "vertical"}
           />
 
         </div>

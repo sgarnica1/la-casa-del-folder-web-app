@@ -187,7 +187,7 @@ export function CartPage() {
               return (
                 <Card key={item.id}>
                   <CardContent className="pt-6">
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">
                           {draft?.title || 'Sin título'}
@@ -257,7 +257,7 @@ export function CartPage() {
                           </Button>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <p className="text-sm text-muted-foreground">Precio unitario</p>
                         <p className="font-medium">{formatPrice(item.unitPrice)}</p>
                         <p className="text-sm text-muted-foreground mt-2">Subtotal</p>
@@ -272,7 +272,7 @@ export function CartPage() {
 
           <Card>
             <CardContent className="pt-6">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col md:flex-row items-start md:justify-between md:items-center gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Total</p>
                   <p className="text-3xl font-semibold">{formatPrice(cart.total)} <span className="text-muted-foreground text-sm">MXN</span></p>
