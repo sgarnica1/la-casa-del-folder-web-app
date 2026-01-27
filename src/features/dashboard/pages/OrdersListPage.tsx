@@ -93,7 +93,7 @@ export function OrdersListPage() {
       let hasMore = true;
 
       while (hasMore) {
-        const response = await apiClient.getAllOrders(currentPage, 100);
+        const response = await apiClient.orders.getAllOrders(currentPage, 100);
         if (response.data.length === 0) {
           hasMore = false;
         } else {

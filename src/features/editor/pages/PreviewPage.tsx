@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  ErrorDisplay,
 } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
@@ -29,6 +30,7 @@ export function PreviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLocking, setIsLocking] = useState(false);
   const [showLockDialog, setShowLockDialog] = useState(false);
+  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -37,8 +39,8 @@ export function PreviewPage() {
     const loadData = async () => {
       try {
         const [draftData, layoutData] = await Promise.all([
-          apiClient.getDraft(draftId),
-          apiClient.getLayout('calendar-template'),
+          apiClient.drafts.getDraft(draftId),
+          apiClient.layouts.getLayout('calendar-template'),
         ]);
         setDraft(draftData);
         setLayout(layoutData);
@@ -47,6 +49,9 @@ export function PreviewPage() {
           navigate(`/draft/${draftId}/confirm`);
         }
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el borrador';
+        const errorStatus = err instanceof Error && 'status' in err ? (err as { status: number }).status : undefined;
+        setError({ message: errorMessage, status: errorStatus });
         toast.error(err);
       } finally {
         setIsLoading(false);
@@ -63,7 +68,7 @@ export function PreviewPage() {
     setIsLocking(true);
 
     try {
-      const lockedDraft = await apiClient.lockDraft(draftId);
+      const lockedDraft = await apiClient.drafts.lockDraft(draftId);
       setDraft(lockedDraft);
       toast.success('Diseño bloqueado — listo para ordenar');
       navigate(`/draft/${draftId}/confirm`);
@@ -102,13 +107,23 @@ export function PreviewPage() {
     );
   }
 
-  if (!draft || !layout) {
+  if (!draft || !layout || error) {
     return (
       <>
         <DraftEditorHeader />
-        <div className="container mx-auto px-4 py-8">
-          <p>Error: No se pudo cargar el borrador</p>
-        </div>
+        <ErrorDisplay
+          message={error?.message || 'No se pudo cargar el borrador'}
+          status={error?.status}
+          onRetry={() => {
+            setError(null);
+            setIsLoading(true);
+            if (draftId) {
+              window.location.reload();
+            }
+          }}
+          onGoBack={handleBackToEditor}
+          onGoHome={() => navigate('/')}
+        />
       </>
     );
   }

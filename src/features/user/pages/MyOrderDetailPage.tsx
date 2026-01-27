@@ -82,7 +82,7 @@ export function MyOrderDetailPage() {
       }
 
       try {
-        const orderData = await apiClient.getMyOrderById(id);
+        const orderData = await apiClient.orders.getMyOrderById(id);
         setOrder({
           id: orderData.id,
           totalAmount: parseFloat(orderData.totalAmount),
@@ -101,7 +101,7 @@ export function MyOrderDetailPage() {
         if (firstItem) {
           const snapshot = firstItem.designSnapshotJson as DesignSnapshot;
           const templateId = snapshot.templateId || 'calendar-template';
-          const layoutData = await apiClient.getLayout(templateId);
+          const layoutData = await apiClient.layouts.getLayout(templateId);
           setLayout(layoutData);
         }
       } catch (err: unknown) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
-import { Skeleton } from '@/components/ui';
+import { Skeleton, ErrorDisplay } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { CalendarEditor } from '@/components/product/CalendarEditor';
 import { apiClient } from '@/services/api-client';
@@ -25,6 +25,7 @@ export function EditorPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [uploadingSlots, setUploadingSlots] = useState<Map<string, { previewUrl: string }>>(new Map());
+  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentReplacingSlotId = useRef<string | null>(null);
   const toast = useToast();
@@ -73,8 +74,8 @@ export function EditorPage() {
       try {
         console.log('[EditorPage] Loading data for draft', { draftId });
         const [draftData, layoutData] = await Promise.all([
-          apiClient.getDraft(draftId),
-          apiClient.getLayout('calendar-template'),
+          apiClient.drafts.getDraft(draftId),
+          apiClient.layouts.getLayout('calendar-template'),
         ]);
 
         console.log('[EditorPage] Data loaded', {
@@ -112,7 +113,7 @@ export function EditorPage() {
             setIsLoadingImages(true);
             try {
               console.log('[EditorPage] Fetching missing images by IDs', { missingImageIds });
-              const images = await apiClient.getImagesByIds(missingImageIds);
+              const images = await apiClient.assets.getImagesByIds(missingImageIds);
               console.log('[EditorPage] Images fetched', { count: images.length });
               addImagesRef.current(images);
               hasLoadedImagesRef.set(draftId, true);
@@ -151,7 +152,12 @@ export function EditorPage() {
         }
       } catch (err) {
         console.error('[EditorPage] Error loading data', err);
+        const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el borrador';
+        const errorStatus = err instanceof Error && 'status' in err ? (err as { status: number }).status : undefined;
+
+        setError({ message: errorMessage, status: errorStatus });
         setIsLoadingImages(false);
+
         if (err instanceof Error && 'status' in err) {
           const status = (err as { status: number }).status;
           if (status === 401) {
@@ -250,7 +256,7 @@ export function EditorPage() {
       try {
         setIsSaving(true);
         setIsAutoAssigning(true);
-        const updatedDraft = await apiClient.updateDraft(draftId, {
+        const updatedDraft = await apiClient.drafts.updateDraft(draftId, {
           layoutItems: updatedItems,
         });
         console.log('[EditorPage] Auto-assign successful', { layoutItemsCount: updatedDraft.layoutItems.length });
@@ -327,7 +333,7 @@ export function EditorPage() {
 
     try {
       // Upload the image
-      const result = await apiClient.uploadImage(file);
+      const result = await apiClient.assets.uploadImage(file);
       const newImage = { id: result.id, url: result.url };
 
       console.log('[EditorPage] Image uploaded, adding to context', {
@@ -359,7 +365,7 @@ export function EditorPage() {
       });
 
       setIsSaving(true);
-      const updatedDraft = await apiClient.updateDraft(draftId, {
+      const updatedDraft = await apiClient.drafts.updateDraft(draftId, {
         layoutItems: updatedItems,
       });
 
@@ -374,6 +380,8 @@ export function EditorPage() {
         slotItem: updatedSlotItem,
         slotItemHasImage: !!updatedSlotItem?.imageId,
       });
+
+      toastRef.current.success('Imagen subida exitosamente');
     } catch (err) {
       console.error('[EditorPage] Failed to replace image', err);
       toastRef.current.error(err);
@@ -445,7 +453,7 @@ export function EditorPage() {
       try {
         setIsSaving(true);
         const titleToSave = trimmedTitle.trim() || undefined; // Save undefined if empty string
-        const updatedDraft = await apiClient.updateDraft(draftId, {
+        const updatedDraft = await apiClient.drafts.updateDraft(draftId, {
           ...(titleToSave !== undefined && { title: titleToSave }),
         });
         setDraft(updatedDraft);
@@ -458,7 +466,7 @@ export function EditorPage() {
         }
         savedTimeoutRef.current = setTimeout(() => {
           setIsSaved(false);
-        }, 2000);
+        }, 1000);
       } catch (err) {
         toastRef.current.error(err);
         // Revert on error
@@ -493,13 +501,23 @@ export function EditorPage() {
     );
   }
 
-  if (!draft || !layout) {
+  if (!draft || !layout || error) {
     return (
       <>
         <DraftEditorHeader />
-        <div className="container mx-auto px-4 py-8">
-          <p>Error: No se pudo cargar el borrador</p>
-        </div>
+        <ErrorDisplay
+          message={error?.message || 'No se pudo cargar el borrador'}
+          status={error?.status}
+          onRetry={() => {
+            setError(null);
+            setIsLoading(true);
+            if (draftId) {
+              window.location.reload();
+            }
+          }}
+          onGoBack={() => navigate('/account/my-designs')}
+          onGoHome={() => navigate('/')}
+        />
       </>
     );
   }
@@ -548,12 +566,23 @@ export function EditorPage() {
                 </h2>
               )}
             </div>
-            <p className="text-muted-foreground mt-2 text-sm">
+            {draft.updatedAt && (
+              <p className="text-muted-foreground mt-2 text-sm">
+                Editado por última vez el {new Date(draft.updatedAt).toLocaleString('es-ES', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+            )}
+            <p className="text-muted-foreground mt-10 text-sm">
               Haz clic en una foto para cambiarla.
             </p>
             {!hasAllImages() && !isLoadingImages && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-500 rounded-lg">
+                <p className="text-sm text-blue-500">
                   Agrega fotos a todos los espacios para continuar.
                 </p>
               </div>

@@ -144,7 +144,7 @@ export function OrderDetailPage() {
     const loadOrder = async () => {
       setIsLoading(true);
       try {
-        const data = await apiClient.getOrderById(id);
+        const data = await apiClient.orders.getOrderById(id);
         setOrder(data);
 
         const imageMap = new Map<string, string>();
@@ -178,7 +178,7 @@ export function OrderDetailPage() {
 
     setIsUpdatingStatus(true);
     try {
-      await apiClient.updateOrderStatus(id, newStatus);
+      await apiClient.orders.updateOrderStatus(id, newStatus);
       setOrder({ ...order, orderStatus: newStatus });
       toast.success(`Estado actualizado a ${ORDER_STATUS_LABELS[newStatus]}`);
     } catch (err) {
@@ -224,7 +224,7 @@ export function OrderDetailPage() {
   if (!order) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <h1 className="text-2xl font-bold mb-4 text-primary">Detalles del Pedido</h1>
+        <h1 className="text-2xl font-semibold mb-4 text-primary">Detalles del Pedido</h1>
         <p className="text-muted-foreground">No se pudo cargar el pedido</p>
       </div>
     );

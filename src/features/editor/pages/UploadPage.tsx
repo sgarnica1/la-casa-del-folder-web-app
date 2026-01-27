@@ -35,8 +35,8 @@ export function UploadPage() {
     const loadData = async () => {
       try {
         const [, layoutData] = await Promise.all([
-          apiClient.getDraft(draftId),
-          apiClient.getLayout('calendar-template'),
+          apiClient.drafts.getDraft(draftId),
+          apiClient.layouts.getLayout('calendar-template'),
         ]);
         setLayout(layoutData);
       } catch (err) {
@@ -115,7 +115,7 @@ export function UploadPage() {
           const fileIndex = i + batchIndex;
           const slotIndex = currentSlotIndex + fileIndex;
           try {
-            const result = await apiClient.uploadImage(file);
+            const result = await apiClient.assets.uploadImage(file);
             const image: UploadedImage = { id: result.id, url: result.url };
             successfulImages.push(image);
 

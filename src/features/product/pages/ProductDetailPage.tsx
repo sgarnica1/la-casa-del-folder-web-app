@@ -47,7 +47,7 @@ export function ProductDetailPage() {
       }
 
       console.log('[ProductDetailPage] Token available, creating draft...');
-      const draft = await apiClient.createDraft(HARDCODED_PRODUCT_ID, HARDCODED_TEMPLATE_ID);
+      const draft = await apiClient.drafts.createDraft(HARDCODED_PRODUCT_ID, HARDCODED_TEMPLATE_ID);
       sessionStorage.setItem(AUTO_CREATE_KEY, 'true');
       sessionStorage.removeItem(PENDING_DRAFT_CREATE_KEY);
       toast.success('Borrador creado exitosamente');
@@ -119,10 +119,10 @@ export function ProductDetailPage() {
   };
 
   const productImages = [
-    '/placeholder-calendar-1.jpg',
-    '/placeholder-calendar-2.jpg',
-    '/placeholder-calendar-3.jpg',
-    '/placeholder-calendar-4.jpg',
+    '/assets/images/calendar-mock-2.jpg',
+    '/assets/images/calendar-mock-3.jpg',
+    '/assets/images/calendar-mock-4.jpg',
+    '/assets/images/calendar-mock-4.jpg',
   ];
 
   const specifications = [
@@ -139,23 +139,27 @@ export function ProductDetailPage() {
         <div className="space-y-4">
           {/* Main Image */}
           <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              <span className="text-sm">Product Image {selectedImage + 1}</span>
-            </div>
+            <img
+              src={productImages[selectedImage]}
+              alt={`Product image ${selectedImage + 1}`}
+              className="w-full h-full object-cover"
+            />
           </div>
 
           {/* Thumbnail Images */}
           <div className="grid grid-cols-3 gap-4">
-            {productImages.slice(0, 3).map((_, index) => (
+            {productImages.slice(0, 3).map((image, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
                 className={`aspect-square bg-gray-200 rounded-lg overflow-hidden border-2 transition-colors ${selectedImage === index ? 'border-gray-800' : 'border-transparent hover:border-gray-300'
                   }`}
               >
-                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                  Image {index + 1}
-                </div>
+                <img
+                  src={image}
+                  alt={`Thumbnail ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
               </button>
             ))}
           </div>

@@ -52,14 +52,15 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
             return;
           }
 
-          return apiClient.getCurrentUser();
+          return apiClient.user.getCurrentUser();
         })
         .then((user) => {
           if (user) {
             setUserRole(user.role as UserRoleType);
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          console.warn('[ProtectedRoute] Error fetching user role, defaulting to customer:', err);
           setUserRole(UserRole.CUSTOMER);
         })
         .finally(() => {
