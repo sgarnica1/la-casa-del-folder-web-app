@@ -5,9 +5,21 @@ import { EditorPage } from '../EditorPage';
 import { UploadedImagesProvider } from '@/contexts/UploadedImagesContext';
 import { apiClient } from '@/services/api-client';
 
-vi.mock('@/services/api-client');
-
-const mockApiClient = vi.mocked(apiClient);
+vi.mock('@/services/api-client', () => ({
+  apiClient: {
+    drafts: {
+      getDraft: vi.fn(),
+    },
+    layouts: {
+      getLayout: vi.fn(),
+    },
+    cart: {},
+    orders: {},
+    assets: {},
+    products: {},
+    user: {},
+  },
+}));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>
@@ -18,7 +30,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('EditorPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.drafts.getDraft.mockResolvedValue({
+    vi.mocked(apiClient.drafts.getDraft).mockResolvedValue({
       id: 'draft-1',
       status: 'draft',
       productId: 'calendar',
@@ -27,7 +39,7 @@ describe('EditorPage', () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    mockApiClient.layouts.getLayout.mockResolvedValue({
+    vi.mocked(apiClient.layouts.getLayout).mockResolvedValue({
       id: 'layout-1',
       templateId: 'calendar-template',
       slots: [

@@ -4,9 +4,23 @@ import { BrowserRouter } from 'react-router-dom';
 import { OrderConfirmationPage } from '../OrderConfirmationPage';
 import { apiClient } from '@/services/api-client';
 
-vi.mock('@/services/api-client');
-
-const mockApiClient = vi.mocked(apiClient);
+vi.mock('@/services/api-client', () => ({
+  apiClient: {
+    drafts: {
+      getDraft: vi.fn(),
+    },
+    layouts: {},
+    cart: {
+      getCart: vi.fn(),
+    },
+    orders: {},
+    assets: {},
+    products: {
+      getProduct: vi.fn(),
+    },
+    user: {},
+  },
+}));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>{children}</BrowserRouter>
@@ -15,7 +29,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('OrderConfirmationPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.drafts.getDraft.mockResolvedValue({
+    vi.mocked(apiClient.drafts.getDraft).mockResolvedValue({
       id: 'draft-1',
       status: 'locked',
       productId: 'calendar',
@@ -24,6 +38,18 @@ describe('OrderConfirmationPage', () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       lockedAt: new Date().toISOString(),
+    });
+    vi.mocked(apiClient.products.getProduct).mockResolvedValue({
+      id: 'calendar',
+      name: 'Calendario Personalizado',
+      description: 'Test calendar',
+      basePrice: 500,
+      currency: 'MXN',
+    });
+    vi.mocked(apiClient.cart.getCart).mockResolvedValue({
+      cart: null,
+      items: [],
+      total: 0,
     });
   });
 
