@@ -78,7 +78,7 @@ export function DashboardLoginPage() {
 
       try {
         console.log('[DashboardLoginPage] Fetching current user...');
-        const user = await apiClient.getCurrentUser();
+        const user = await apiClient.user.getCurrentUser();
         console.log('[DashboardLoginPage] User fetched:', { id: user.id, role: user.role, clerkUserId: user.clerkUserId });
         console.log('[DashboardLoginPage] Comparing role:', { userRole: user.role, adminRole: UserRole.ADMIN, match: user.role === UserRole.ADMIN });
 

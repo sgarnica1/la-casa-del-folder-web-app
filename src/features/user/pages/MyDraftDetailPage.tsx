@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ShoppingCart } from 'lucide-react';
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { useWaitForToken } from '@/hooks/useWaitForToken';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
 import { CalendarEditor } from '@/components/product/CalendarEditor';
+import { useApiClient } from '@/hooks/useApiClient';
 import type { Draft, Layout } from '@/types';
 
 const STATE_LABELS: Record<string, string> = {
@@ -37,7 +38,10 @@ export function MyDraftDetailPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInCart, setIsInCart] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const toast = useToast();
+  useApiClient();
 
   useEffect(() => {
     if (!id) return;
@@ -61,8 +65,8 @@ export function MyDraftDetailPage() {
 
       try {
         const [draftData, layoutData] = await Promise.all([
-          apiClient.getMyDraftById(id),
-          apiClient.getLayout('calendar-template'),
+          apiClient.drafts.getMyDraftById(id),
+          apiClient.layouts.getLayout('calendar-template'),
         ]);
 
         setDraft(draftData);
@@ -74,8 +78,18 @@ export function MyDraftDetailPage() {
             .filter((id): id is string => !!id);
 
           if (imageIds.length > 0) {
-            const images = await apiClient.getImagesByIds(imageIds);
+            const images = await apiClient.assets.getImagesByIds(imageIds);
             addImages(images);
+          }
+        }
+
+        if (draftData.status === 'locked') {
+          try {
+            const cart = await apiClient.cart.getCart();
+            const inCart = cart.items.some(item => item.draftId === id);
+            setIsInCart(inCart);
+          } catch {
+            setIsInCart(false);
           }
         }
       } catch (err: unknown) {
@@ -129,7 +143,26 @@ export function MyDraftDetailPage() {
     );
   }
 
-  const isLocked = draft.status === 'locked' || draft.status === 'ordered';
+  const isEditing = draft.status === 'draft';
+  const isLocked = draft.status === 'locked';
+  const isOrdered = draft.status === 'ordered';
+  const canAddToCart = (isEditing || isLocked) && !isInCart && !isOrdered;
+
+  const handleAddToCart = async () => {
+    if (!id) return;
+    setIsAddingToCart(true);
+    try {
+      await apiClient.cart.addCartItem(id);
+      const updatedDraft = await apiClient.drafts.getMyDraftById(id);
+      setDraft(updatedDraft);
+      setIsInCart(true);
+      toast.success('Agregado al carrito (diseño bloqueado)');
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
 
   return (
     <div className="w-full bg-gray-50 min-h-screen">
@@ -144,11 +177,31 @@ export function MyDraftDetailPage() {
               <h1 className="text-3xl font-bold mb-2">{draft.title || 'Sin título'}</h1>
               <StatusBadge state={draft.status === 'draft' ? 'editing' : draft.status} />
             </div>
-            {!isLocked && (
-              <Button onClick={() => navigate(`/draft/${id}/edit`)}>
-                Editar diseño
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canAddToCart && (
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={isAddingToCart}
+                  variant="default"
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  {isAddingToCart ? 'Agregando...' : 'Agregar al carrito'}
+                </Button>
+              )}
+              {isInCart && (
+                <Button
+                  onClick={() => navigate('/cart')}
+                  variant="outline"
+                >
+                  Ver en carrito
+                </Button>
+              )}
+              {!isLocked && (
+                <Button onClick={() => navigate(`/draft/${id}/edit`)}>
+                  Editar diseño
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 

@@ -4,9 +4,19 @@ import { BrowserRouter } from 'react-router-dom';
 import { ProductDetailPage } from '../ProductDetailPage';
 import { apiClient } from '@/services/api-client';
 
-vi.mock('@/services/api-client');
-
-const mockApiClient = vi.mocked(apiClient);
+vi.mock('@/services/api-client', () => ({
+  apiClient: {
+    drafts: {
+      createDraft: vi.fn(),
+    },
+    layouts: {},
+    cart: {},
+    orders: {},
+    assets: {},
+    products: {},
+    user: {},
+  },
+}));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>{children}</BrowserRouter>
@@ -15,7 +25,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('ProductDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.createDraft.mockResolvedValue({
+    vi.mocked(apiClient.drafts.createDraft).mockResolvedValue({
       id: 'draft-1',
       status: 'draft',
       productId: 'calendar',
