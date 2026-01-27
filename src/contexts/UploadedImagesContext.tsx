@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import type { UploadedImage } from '@/types';
 
 interface UploadedImagesContextType {
@@ -13,7 +13,7 @@ const UploadedImagesContext = createContext<UploadedImagesContextType | undefine
 export function UploadedImagesProvider({ children }: { children: ReactNode }) {
   const [images, setImages] = useState<UploadedImage[]>([]);
 
-  const addImages = (newImages: UploadedImage[]) => {
+  const addImages = useCallback((newImages: UploadedImage[]) => {
     setImages((prev) => {
       const existingIds = new Set(prev.map((img) => img.id));
       const uniqueNewImages = newImages.filter((img) => !existingIds.has(img.id));
@@ -21,15 +21,15 @@ export function UploadedImagesProvider({ children }: { children: ReactNode }) {
       const combined = [...prev, ...uniqueNewImages];
       return combined.slice(0, MAX_IMAGES);
     });
-  };
+  }, []);
 
-  const removeImage = (imageId: string) => {
+  const removeImage = useCallback((imageId: string) => {
     setImages((prev) => prev.filter((img) => img.id !== imageId));
-  };
+  }, []);
 
-  const clearImages = () => {
+  const clearImages = useCallback(() => {
     setImages([]);
-  };
+  }, []);
 
   return (
     <UploadedImagesContext.Provider value={{ images, addImages, removeImage, clearImages }}>
