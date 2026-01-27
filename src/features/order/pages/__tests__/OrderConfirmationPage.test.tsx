@@ -15,7 +15,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('OrderConfirmationPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.getDraft.mockResolvedValue({
+    mockApiClient.drafts.getDraft.mockResolvedValue({
       id: 'draft-1',
       status: 'locked',
       productId: 'calendar',

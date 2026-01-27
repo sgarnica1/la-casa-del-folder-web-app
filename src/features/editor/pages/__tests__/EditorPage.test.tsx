@@ -18,7 +18,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('EditorPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockApiClient.getDraft.mockResolvedValue({
+    mockApiClient.drafts.getDraft.mockResolvedValue({
       id: 'draft-1',
       status: 'draft',
       productId: 'calendar',
@@ -27,7 +27,7 @@ describe('EditorPage', () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    mockApiClient.getLayout.mockResolvedValue({
+    mockApiClient.layouts.getLayout.mockResolvedValue({
       id: 'layout-1',
       templateId: 'calendar-template',
       slots: [
