@@ -9,6 +9,9 @@ import { OrderConfirmationPage } from '@/features/order/pages/OrderConfirmationP
 import { CartPage } from '@/features/order/pages/CartPage';
 import { PaymentPage } from '@/features/order/pages/PaymentPage';
 import { PaymentConfirmedPage } from '@/features/order/pages/PaymentConfirmedPage';
+import { PaymentSuccessPage } from '@/features/order/pages/PaymentSuccessPage';
+import { PaymentFailurePage } from '@/features/order/pages/PaymentFailurePage';
+import { PaymentPendingPage } from '@/features/order/pages/PaymentPendingPage';
 import { DashboardLoginPage } from '@/features/dashboard/pages/DashboardLoginPage';
 import { OrdersListPage } from '@/features/dashboard/pages/OrdersListPage';
 import { OrderDetailPage } from '@/features/dashboard/pages/OrderDetailPage';
@@ -84,6 +87,30 @@ function App() {
           element={
             <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
               <PaymentConfirmedPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/success"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PaymentSuccessPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/failure"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PaymentFailurePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/pending"
+          element={
+            <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
+              <PaymentPendingPage />
             </ProtectedRoute>
           }
         />
