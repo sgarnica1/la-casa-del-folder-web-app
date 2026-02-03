@@ -6,6 +6,7 @@ import { AssetApi } from './api/asset-api';
 import { ProductApi } from './api/product-api';
 import { LayoutApi } from './api/layout-api';
 import { UserApi } from './api/user-api';
+import { PaymentApi } from './api/payment-api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -17,6 +18,7 @@ class ApiClient extends BaseApiClient {
   public products: ProductApi;
   public layouts: LayoutApi;
   public user: UserApi;
+  public payments: PaymentApi;
 
   constructor(baseUrl: string) {
     super(baseUrl);
@@ -27,6 +29,7 @@ class ApiClient extends BaseApiClient {
     this.products = new ProductApi(baseUrl);
     this.layouts = new LayoutApi(baseUrl);
     this.user = new UserApi(baseUrl);
+    this.payments = new PaymentApi(baseUrl);
   }
 
   setTokenGetter(getToken: () => Promise<string | null>): void {
@@ -38,6 +41,7 @@ class ApiClient extends BaseApiClient {
     this.products.setTokenGetter(getToken);
     this.layouts.setTokenGetter(getToken);
     this.user.setTokenGetter(getToken);
+    this.payments.setTokenGetter(getToken);
   }
 
 }
