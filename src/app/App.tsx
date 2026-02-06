@@ -7,7 +7,7 @@ import { UploadPage } from '@/features/editor/pages/UploadPage';
 import { EditorPage } from '@/features/editor/pages/EditorPage';
 import { OrderConfirmationPage } from '@/features/order/pages/OrderConfirmationPage';
 import { CartPage } from '@/features/order/pages/CartPage';
-import { PaymentPage } from '@/features/order/pages/PaymentPage';
+import { CheckoutPage } from '@/features/order/pages/CheckoutPage';
 import { PaymentConfirmedPage } from '@/features/order/pages/PaymentConfirmedPage';
 import { PaymentSuccessPage } from '@/features/order/pages/PaymentSuccessPage';
 import { PaymentFailurePage } from '@/features/order/pages/PaymentFailurePage';
@@ -75,10 +75,10 @@ function App() {
           }
         />
         <Route
-          path="/payment"
+          path="/checkout"
           element={
             <ProtectedRoute requiredRole={UserRole.CUSTOMER}>
-              <PaymentPage />
+              <CheckoutPage />
             </ProtectedRoute>
           }
         />

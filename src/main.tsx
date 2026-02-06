@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { ClerkProvider } from '@clerk/clerk-react'
 import { esES } from '@clerk/localizations'
 import { initMercadoPago } from '@mercadopago/sdk-react'
+import { CartProvider } from '@/contexts/CartContext'
 import App from './app/App.tsx'
 import './index.css'
 
@@ -29,7 +30,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         }
       }}
     >
-      <App />
+      <CartProvider>
+        <App />
+      </CartProvider>
     </ClerkProvider>
   </React.StrictMode>,
 )

@@ -66,12 +66,31 @@ export class CartApi extends BaseApiClient {
     }
   }
 
-  async checkoutCart(): Promise<{ id: string; draftId: string; state: string; createdAt: string }> {
+  async checkoutCart(data?: {
+    shippingAddressId?: string;
+    shippingAddressData?: {
+      addressLine1: string;
+      addressLine2?: string | null;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+    };
+    customerData?: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+    };
+  }): Promise<{ id: string; draftId: string; state: string; createdAt: string }> {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/cart/checkout`, {
         method: 'POST',
-        headers,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data || {}),
       });
       return handleResponse<{ id: string; draftId: string; state: string; createdAt: string }>(response);
     } catch (error) {
