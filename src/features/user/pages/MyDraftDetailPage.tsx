@@ -6,6 +6,7 @@ import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { useWaitForToken } from '@/hooks/useWaitForToken';
 import { useUploadedImages } from '@/contexts/UploadedImagesContext';
+import { useCart } from '@/contexts/CartContext';
 import { CalendarEditor } from '@/components/product/CalendarEditor';
 import { useApiClient } from '@/hooks/useApiClient';
 import type { Draft, Layout } from '@/types';
@@ -58,6 +59,7 @@ export function MyDraftDetailPage() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const isMdOrLarger = useIsMdOrLarger();
   const toast = useToast();
+  const { refreshCart } = useCart();
   useApiClient();
 
   useEffect(() => {
@@ -173,6 +175,7 @@ export function MyDraftDetailPage() {
       const updatedDraft = await apiClient.drafts.getMyDraftById(id);
       setDraft(updatedDraft);
       setIsInCart(true);
+      await refreshCart();
       toast.success('Agregado al carrito (diseño bloqueado)');
     } catch (err) {
       toast.error(err);

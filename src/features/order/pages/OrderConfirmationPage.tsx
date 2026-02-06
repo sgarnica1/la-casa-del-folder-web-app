@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton, Er
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
+import { useCart } from '@/contexts/CartContext';
 import { useApiClient } from '@/hooks/useApiClient';
 import type { Draft } from '@/types';
 import type { Product } from '@/types/product';
@@ -27,6 +28,7 @@ export function OrderConfirmationPage() {
   const [isInCart, setIsInCart] = useState(false);
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const toast = useToast();
+  const { refreshCart } = useCart();
   useApiClient();
 
   useEffect(() => {
@@ -89,6 +91,7 @@ export function OrderConfirmationPage() {
       const updatedDraft = await apiClient.drafts.getDraft(draftId);
       setDraft(updatedDraft);
       setIsInCart(true);
+      await refreshCart();
       toast.success('Agregado al carrito (diseño bloqueado)');
       navigate('/cart');
     } catch (err) {
