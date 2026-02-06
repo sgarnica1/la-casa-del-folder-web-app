@@ -32,3 +32,5 @@ Thumbs.db
 # Lock files (optional, but recommended to commit for apps)
 # package-lock.json
 # yarn.lock
+.vercel
+.env*.local

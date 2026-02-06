@@ -5,8 +5,9 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { useApiClient } from '@/hooks/useApiClient';
+import { useCart } from '@/contexts/CartContext';
 import { Trash2, Plus, Minus, ShoppingCart } from 'lucide-react';
-import type { CartWithItems, CartItem } from '@/types/cart';
+import type { CartItem } from '@/types/cart';
 import type { Draft } from '@/types';
 
 const formatPrice = (price: number): string => {
@@ -20,21 +21,22 @@ const formatPrice = (price: number): string => {
 
 export function CartPage() {
   const navigate = useNavigate();
-  const [cart, setCart] = useState<CartWithItems | null>(null);
+  const { cart, isLoading, refreshCart } = useCart();
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDrafts, setIsLoadingDrafts] = useState(true);
   const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({});
-  const [isCheckout, setIsCheckout] = useState(false);
   const toast = useToast();
   useApiClient();
 
   useEffect(() => {
-    const loadCart = async () => {
-      try {
-        const cartData = await apiClient.cart.getCart();
-        setCart(cartData);
+    if (!cart || cart.items.length === 0) {
+      setIsLoadingDrafts(false);
+      return;
+    }
 
-        const uniqueDraftIds = [...new Set(cartData.items.map(item => item.draftId))];
+    const loadDrafts = async () => {
+      try {
+        const uniqueDraftIds = [...new Set(cart.items.map(item => item.draftId))];
 
         const draftResults = await Promise.all(
           uniqueDraftIds.map(async (draftId) => {
@@ -52,12 +54,12 @@ export function CartPage() {
       } catch (err) {
         toast.error(err);
       } finally {
-        setIsLoading(false);
+        setIsLoadingDrafts(false);
       }
     };
 
-    loadCart();
-  }, [toast]);
+    loadDrafts();
+  }, [cart, toast]);
 
   const handleUpdateQuantity = async (item: CartItem, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -67,8 +69,7 @@ export function CartPage() {
     setIsUpdating((prev) => ({ ...prev, [item.id]: true }));
     try {
       await apiClient.cart.updateCartItemQuantity(item.id, newQuantity);
-      const updatedCart = await apiClient.cart.getCart();
-      setCart(updatedCart);
+      await refreshCart();
       toast.success('Cantidad actualizada');
     } catch (err) {
       toast.error(err);
@@ -85,8 +86,7 @@ export function CartPage() {
     setIsUpdating((prev) => ({ ...prev, [item.id]: true }));
     try {
       await apiClient.cart.removeCartItem(item.id);
-      const updatedCart = await apiClient.cart.getCart();
-      setCart(updatedCart);
+      await refreshCart();
       const updatedDrafts = { ...drafts };
       delete updatedDrafts[item.draftId];
       setDrafts(updatedDrafts);
@@ -108,18 +108,10 @@ export function CartPage() {
       return;
     }
 
-    setIsCheckout(true);
-    try {
-      const order = await apiClient.cart.checkoutCart();
-      // checkoutCart returns { id, draftId, state, createdAt }
-      navigate(`/payment?orderId=${order.id}`);
-    } catch (err) {
-      toast.error(err);
-      setIsCheckout(false);
-    }
+    navigate('/checkout');
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingDrafts) {
     return (
       <PublicLayout>
         <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -280,9 +272,9 @@ export function CartPage() {
                 <Button
                   onClick={handleCheckout}
                   size="lg"
-                  disabled={isCheckout || cart.items.length === 0}
+                  disabled={cart.items.length === 0}
                 >
-                  {isCheckout ? 'Procesando...' : 'Confirmar pedido'}
+                  Continuar al pago
                 </Button>
               </div>
             </CardContent>

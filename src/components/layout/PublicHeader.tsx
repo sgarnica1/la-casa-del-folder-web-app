@@ -1,43 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import { isSafari } from '@/utils/browser';
-import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { Palette, ShoppingBag, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { apiClient } from '@/services/api-client';
-import { useApiClient } from '@/hooks/useApiClient';
+import { useCart } from '@/contexts/CartContext';
 
 export function PublicHeader() {
   const location = useLocation();
   const isSafariBrowser = isSafari();
-  const { isSignedIn, isLoaded } = useAuth();
-  const [cartItemCount, setCartItemCount] = useState(0);
-  useApiClient();
+  const { cartItemCount } = useCart();
 
   const isActive = (path: string) => {
     return location.pathname.startsWith(path);
   };
-
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) {
-      setCartItemCount(0);
-      return;
-    }
-
-    const loadCartCount = async () => {
-      try {
-        const cart = await apiClient.cart.getCart();
-        setCartItemCount(cart.items.length);
-      } catch {
-        setCartItemCount(0);
-      }
-    };
-
-    loadCartCount();
-
-    const interval = setInterval(loadCartCount, 30000);
-    return () => clearInterval(interval);
-  }, [isLoaded, isSignedIn]);
 
   return (
     <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm">
