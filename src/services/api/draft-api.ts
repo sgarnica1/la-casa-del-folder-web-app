@@ -66,13 +66,13 @@ export class DraftApi extends BaseApiClient {
     }
   }
 
-  async getMyDrafts(): Promise<Array<{ id: string; title: string | null; state: string; updatedAt: string; coverUrl: string | null }>> {
+  async getMyDrafts(): Promise<Array<{ id: string; title: string | null; state: string; updatedAt: string; coverUrl: string | null; productName: string | null }>> {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/user/me/drafts`, {
         headers,
       });
-      return handleResponse<Array<{ id: string; title: string | null; state: string; updatedAt: string; coverUrl: string | null }>>(response);
+      return handleResponse<Array<{ id: string; title: string | null; state: string; updatedAt: string; coverUrl: string | null; productName: string | null }>>(response);
     } catch (error) {
       return handleFetchError(error);
     }

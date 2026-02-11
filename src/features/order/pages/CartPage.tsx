@@ -132,7 +132,7 @@ export function CartPage() {
                 <ShoppingCart className="h-12 w-12 text-muted-foreground" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-4xl font-bold">Carrito</h1>
+                <h1 className="text-4xl font-semibold">Carrito</h1>
                 <p className="text-muted-foreground text-lg">
                   Tu carrito está vacío
                 </p>
@@ -159,7 +159,7 @@ export function CartPage() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="space-y-6">
           <div>
-            <h1 className="text-4xl font-bold">Carrito</h1>
+            <h1 className="text-4xl font-semibold">Carrito</h1>
             <p className="text-muted-foreground mt-2">
               Revisa tu pedido antes de continuar
             </p>

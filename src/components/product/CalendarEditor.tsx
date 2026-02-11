@@ -171,7 +171,7 @@ export function CalendarEditor({
 
     return (
       <div key={slot.id} className={layoutMode === 'grid' ? 'h-full flex' : 'flex justify-center mb-8'}>
-        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-xl shadow-md p-4 lg:p-8`}>
+        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-xl shadow-md p-4 lg:p-4`}>
           <div
             className={`relative w-full aspect-[4/3] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-gray-300 transition-colors'}`}
             onClick={() => handleSlotClick(slot.id)}
@@ -220,7 +220,7 @@ export function CalendarEditor({
                     <Pencil className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
                   </div>
                 ) : (
-                  <div className="lg:text-3xl text-2xl text-gray-800 break-all">{title}</div>
+                  <div className="lg:text-2xl text-xl  text-gray-800 break-all">{title}</div>
                 )}
                 <div className="lg:text-4xl text-2xl font-bold text-gray-900">{year}</div>
               </div>
