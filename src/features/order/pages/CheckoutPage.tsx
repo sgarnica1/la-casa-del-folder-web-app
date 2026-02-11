@@ -413,49 +413,50 @@ export function CheckoutPage() {
   return (
     <PublicLayout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <h1 className="text-3xl font-bold mb-8">Finalizar Compra</h1>
+        <h1 className="text-3xl font-semibold text-gray-900 mb-8">Finalizar Compra</h1>
 
         <div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Información del Cliente</CardTitle>
+              <Card className="border-gray-200/60 rounded-2xl shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-semibold text-gray-900">Información del Cliente</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Nombre <span className="text-destructive">*</span>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nombre <span className="text-red-500">*</span>
                       </label>
-                      <Input
-                        value={customerData.firstName}
-                        onChange={(e) => setCustomerData({ ...customerData, firstName: e.target.value })}
-                        required
-                        disabled={false}
-                      />
+                        <Input
+                          value={customerData.firstName}
+                          onChange={(e) => setCustomerData({ ...customerData, firstName: e.target.value })}
+                          required
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
+                        />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Apellido <span className="text-destructive">*</span>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Apellido <span className="text-red-500">*</span>
                       </label>
-                      <Input
-                        value={customerData.lastName}
-                        onChange={(e) => setCustomerData({ ...customerData, lastName: e.target.value })}
-                        required
-                        disabled={false}
-                      />
+                        <Input
+                          value={customerData.lastName}
+                          onChange={(e) => setCustomerData({ ...customerData, lastName: e.target.value })}
+                          required
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
+                        />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Teléfono <span className="text-destructive">*</span>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Teléfono <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="tel"
                       value={customerData.phone}
                       onChange={(e) => {
-                        // Only allow numbers, max 10 digits
                         const value = e.target.value.replace(/\D/g, '').slice(0, 10);
                         setCustomerData({ ...customerData, phone: value });
                       }}
@@ -463,40 +464,41 @@ export function CheckoutPage() {
                       maxLength={10}
                       placeholder="Ej: 5512345678"
                       required
-                      disabled={false}
+                      disabled={!!preferenceId}
+                      className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors"
                     />
                     {customerData.phone && customerData.phone.length !== 10 && (
-                      <p className="text-sm text-destructive mt-1">
+                      <p className="text-sm text-red-600 mt-1.5">
                         El teléfono debe tener 10 dígitos
                       </p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Email</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <Input
                       type="email"
                       value={customerData.email}
                       disabled
-                      className="bg-muted"
+                      className="rounded-xl h-11 bg-gray-50 border-gray-200 text-gray-600"
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Dirección de Envío</CardTitle>
+              <Card className="border-gray-200/60 rounded-2xl shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-semibold text-gray-900">Dirección de Envío</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5">
                   {isLoadingAddresses ? (
                     <Skeleton className="h-32" />
                   ) : addresses.length > 0 && !showNewAddressForm ? (
                     <>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {addresses.map((address) => (
                           <label
                             key={address.id}
-                            className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-muted/50"
+                            className="flex items-start gap-3 p-4 border border-gray-200/60 rounded-xl cursor-pointer hover:bg-gray-50/50 hover:border-gray-300 transition-all duration-150"
                           >
                             <input
                               type="radio"
@@ -505,10 +507,10 @@ export function CheckoutPage() {
                               checked={selectedAddressId === address.id}
                               onChange={() => setSelectedAddressId(address.id)}
                               className="mt-1"
-                              disabled={false}
+                              disabled={!!preferenceId}
                             />
                             <div className="flex-1">
-                              <div className="text-sm text-muted-foreground">
+                              <div className="text-sm text-gray-700 leading-relaxed">
                                 {address.addressLine1}
                                 {address.addressLine2 && `, ${address.addressLine2}`}
                                 <br />
@@ -527,74 +529,81 @@ export function CheckoutPage() {
                           setShowNewAddressForm(true);
                           setSelectedAddressId(null);
                         }}
-                        disabled={false}
+                        disabled={!!preferenceId}
+                        className="rounded-xl h-10"
                       >
                         Agregar nueva dirección
                       </Button>
                     </>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Dirección 1 <span className="text-destructive">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Dirección 1 <span className="text-red-500">*</span>
                         </label>
                         <Input
                           value={newAddress.addressLine1}
                           onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })}
                           required
-                          disabled={false}
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Dirección 2 (opcional)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Dirección 2 (opcional)</label>
                         <Input
                           value={newAddress.addressLine2 || ''}
                           onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
-                          disabled={false}
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Ciudad <span className="text-destructive">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Ciudad <span className="text-red-500">*</span>
                         </label>
                         <Input
                           value={newAddress.city}
                           onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
                           required
-                          disabled={false}
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Estado/Provincia <span className="text-destructive">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Estado/Provincia <span className="text-red-500">*</span>
                         </label>
                         <Input
                           value={newAddress.state}
                           onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
                           required
-                          disabled={false}
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Código Postal <span className="text-destructive">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Código Postal <span className="text-red-500">*</span>
                         </label>
                         <Input
                           value={newAddress.postalCode}
                           onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
                           required
-                          disabled={false}
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          País <span className="text-destructive">*</span>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          País <span className="text-red-500">*</span>
                         </label>
                         <Input
                           value={newAddress.country}
                           onChange={(e) => setNewAddress({ ...newAddress, country: e.target.value })}
                           required
-                          disabled={false}
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
                       {addresses.length > 0 && (
@@ -607,7 +616,8 @@ export function CheckoutPage() {
                               setSelectedAddressId(addresses[0].id);
                             }
                           }}
-                          disabled={false}
+                          disabled={!!preferenceId}
+                          className="rounded-xl h-10"
                         >
                           Usar dirección existente
                         </Button>
@@ -618,13 +628,13 @@ export function CheckoutPage() {
               </Card>
             </div>
 
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Resumen del Pedido</CardTitle>
+            <div className="lg:sticky lg:top-8">
+              <Card className="border-gray-200/60 rounded-2xl shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-semibold text-gray-900">Resumen del Pedido</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
+                <CardContent className="space-y-5">
+                  <div className="space-y-4">
                     {(orderItems.length > 0 ? orderItems : (cart?.items || [])).map((item) => {
                       const productName = 'productName' in item
                         ? item.productName
@@ -634,8 +644,8 @@ export function CheckoutPage() {
                       const coverUrl = draftCoverUrls[item.draftId];
 
                       return (
-                        <div key={item.id} className="flex gap-4 items-start border-b pb-3">
-                          <div className="w-16 h-16 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+                        <div key={item.id} className="flex gap-4 items-start pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                          <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200/60 bg-gray-50 flex-shrink-0">
                             {coverUrl ? (
                               <img
                                 src={coverUrl}
@@ -648,37 +658,37 @@ export function CheckoutPage() {
                                   if (parent && !parent.querySelector('svg')) {
                                     const icon = document.createElement('div');
                                     icon.className = 'w-full h-full flex items-center justify-center';
-                                    icon.innerHTML = '<svg class="h-6 w-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                                    icon.innerHTML = '<svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
                                     parent.appendChild(icon);
                                   }
                                 }}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Image className="h-6 w-6 text-muted-foreground" />
+                                <Image className="h-6 w-6 text-gray-400" />
                               </div>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium">{productName}</div>
-                            <div className="text-sm text-muted-foreground mt-1">
+                            <div className="font-medium text-gray-900">{productName}</div>
+                            <div className="text-sm text-gray-600 mt-0.5">
                               {draftTitle}
                             </div>
-                            <div className="text-sm text-muted-foreground mt-1">
+                            <div className="text-xs text-gray-500 mt-1">
                               Cantidad: {item.quantity}
                             </div>
                           </div>
-                          <div className="font-medium flex-shrink-0">
+                          <div className="font-semibold text-gray-900 flex-shrink-0">
                             {formatPrice(item.unitPrice * item.quantity)}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="pt-4">
-                    <div className="flex justify-between items-center text-lg font-bold">
-                      <span>Total</span>
-                      <span>{formatPrice(orderTotal ?? cart?.total ?? 0)}</span>
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-base font-semibold text-gray-900">Total</span>
+                      <span className="text-2xl font-bold text-gray-900">{formatPrice(orderTotal ?? cart?.total ?? 0)}</span>
                     </div>
                   </div>
                   <div className="space-y-4">
@@ -692,9 +702,9 @@ export function CheckoutPage() {
                     ) : (
                       <div className="opacity-50 pointer-events-none">
                         <div id="walletBrick_container_disabled">
-                          <div className="bg-muted rounded-lg p-4 text-center text-muted-foreground">
-                            <p className="text-sm">Mercado Pago</p>
-                            <p className="text-xs mt-1">Completa el formulario para habilitar el pago</p>
+                          <div className="bg-gray-50 rounded-xl p-6 text-center border border-gray-200/60">
+                            <p className="text-sm font-medium text-gray-600">Mercado Pago</p>
+                            <p className="text-xs text-gray-500 mt-1.5">Completa el formulario para habilitar el pago</p>
                           </div>
                         </div>
                       </div>

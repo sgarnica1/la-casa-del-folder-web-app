@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Image as ImageIcon, Check } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { Button, Skeleton } from '@/components/ui';
 import { DraftEditorHeader } from '@/components/layout/DraftEditorHeader';
@@ -243,12 +243,24 @@ export function UploadPage() {
         {layout && (() => {
           const MAX_IMAGES = 20;
           const totalUploaded = Math.min(uploadedImages.length, MAX_IMAGES);
-          // const totalWithUploading = Math.min(uploadedImages.length + uploadingImages.size, MAX_IMAGES);
+          const progress = Math.min((totalUploaded / requiredCount) * 100, 100);
+
           return (
-            <div className="flex flex-col text-sm text-black">
-              <span className="font-medium">
-                {totalUploaded} / {requiredCount} fotos subidas
-              </span>
+            <div className="flex items-center gap-4 min-w-[200px]">
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-gray-700">
+                    {totalUploaded} / {requiredCount} fotos
+                  </span>
+                  <span className="text-gray-500">{Math.round(progress)}%</span>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
             </div>
           );
         })()}
@@ -262,14 +274,19 @@ export function UploadPage() {
           // If no images uploaded, show centered empty state
           if (!hasAnyImages) {
             return (
-              <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl mb-6 text-black font-semibold">
-                    Selecciona {requiredCount} fotos para empezar
-                  </h2>
-                  <p className="text-md text-muted-foreground">
-                    No te preocupes, puedes cambiarlas más adelante.
-                  </p>
+              <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-8">
+                <div className="flex flex-col items-center space-y-6">
+                  <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center">
+                    <ImageIcon className="h-10 w-10 text-blue-600" />
+                  </div>
+                  <div className="text-center space-y-3">
+                    <h2 className="text-3xl md:text-4xl font-semibold text-gray-900">
+                      Selecciona {requiredCount} fotos para empezar
+                    </h2>
+                    <p className="text-base text-gray-500 max-w-md">
+                      No te preocupes, puedes cambiarlas más adelante.
+                    </p>
+                  </div>
                 </div>
                 <Button
                   type="button"
@@ -279,8 +296,7 @@ export function UploadPage() {
                   }}
                   disabled={isUploading}
                   size="lg"
-                  variant="secondary"
-                  className="w-auto"
+                  className="h-12 px-8 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all duration-180"
                 >
                   Seleccionar fotos
                 </Button>
@@ -292,25 +308,20 @@ export function UploadPage() {
           const imagesToShow = uploadedImages.slice(0, maxImages);
 
           return (
-            <div className="space-y-6">
+            <div className="space-y-8">
               <div>
-                <h2 className="text-2xl md:text-3xl lg:text-4xl text-black font-semibold">
+                <h2 className="text-3xl font-semibold text-gray-900 mb-3">
                   Subir fotos
                 </h2>
-                <p className="text-muted-foreground mt-2">
-                  Selecciona mínimo
-                  <strong className="text-primary"> {requiredCount}</strong> fotos para continuar.
+                <p className="text-gray-600 text-base">
+                  Selecciona mínimo <strong className="text-gray-900">{requiredCount}</strong> fotos para continuar.
                 </p>
-                <p className="text-sm text-muted-foreground mt-3">
+                <p className="text-sm text-gray-500 mt-2">
                   Puedes cambiarlas más adelante.
                 </p>
-
-                <span className="block text-sm md:text-lg text-primary mt-10 font-semibold">
-                  {Math.min(uploadedImages.length, maxImages)} / {requiredCount} fotos
-                </span>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                 {/* Display images maintaining their positions */}
                 {(() => {
                   const startIndex = 0;
@@ -360,25 +371,29 @@ export function UploadPage() {
                   return slots.map((slot) => {
                     if (slot.type === 'uploaded' && slot.image) {
                       return (
-                        <div key={slot.image.id} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-border bg-muted/30 shadow-sm">
+                        <div key={slot.image.id} className="group relative w-full aspect-square rounded-xl overflow-hidden border-2 border-blue-500 bg-gray-50 shadow-[0_6px_24px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] transition-all duration-180">
                           <img
                             src={slot.image.url}
                             alt={`Image ${slot.index + 1}`}
                             className="w-full h-full object-cover"
                           />
+                          <div className="absolute inset-0 bg-blue-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-180">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                              <Check className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
                         </div>
-
                       );
                     } else if (slot.type === 'uploading' && slot.uploadingImage) {
                       return (
-                        <div key={`uploading-${slot.index}`} className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm">
+                        <div key={`uploading-${slot.index}`} className="relative w-full aspect-square rounded-xl overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50 shadow-sm">
                           <img
                             src={slot.uploadingImage.previewUrl}
                             alt={`Uploading ${slot.index + 1}`}
                             className="w-full h-full object-cover opacity-70"
                           />
-                          <div className="absolute inset-0 flex items-center justify-center bg-white/30">
-                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-white/40">
+                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
                           </div>
                         </div>
                       );
@@ -396,9 +411,9 @@ export function UploadPage() {
                       input?.click();
                     }}
                     disabled={isUploading}
-                    className="relative w-full aspect-square rounded-md overflow-hidden border-2 border-dashed border-border bg-muted/30 shadow-sm hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-center"
+                    className="relative w-full aspect-square rounded-xl overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50 shadow-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-180 cursor-pointer flex items-center justify-center"
                   >
-                    <Plus className="h-8 w-8 text-muted-foreground" />
+                    <Plus className="h-8 w-8 text-gray-400" />
                   </button>
                 )}
               </div>
