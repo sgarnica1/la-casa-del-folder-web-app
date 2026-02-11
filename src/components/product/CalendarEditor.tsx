@@ -171,10 +171,23 @@ export function CalendarEditor({
 
     return (
       <div key={slot.id} className={layoutMode === 'grid' ? 'h-full flex' : 'flex justify-center mb-8'}>
-        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-xl shadow-md p-4 lg:p-8`}>
+        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 lg:p-6 border border-gray-200/60`}>
           <div
-            className={`relative w-full aspect-[4/3] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 ${isLocked ? 'cursor-default' : 'cursor-pointer hover:border-gray-300 transition-colors'}`}
+            className={`relative w-full aspect-[4/3] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 rounded-xl ${isLocked ? 'cursor-default' : 'cursor-pointer transition-all duration-200'}`}
             onClick={() => handleSlotClick(slot.id)}
+            style={!isLocked ? {
+              transition: 'transform 200ms ease-out',
+            } : {}}
+            onMouseEnter={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'scale(1)';
+              }
+            }}
           >
             {uploadingSlots.has(slot.id) ? (
               <>
@@ -220,31 +233,31 @@ export function CalendarEditor({
                     <Pencil className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
                   </div>
                 ) : (
-                  <div className="lg:text-3xl text-2xl text-gray-800 break-all">{title}</div>
+                  <div className="lg:text-2xl text-xl  text-gray-800 break-all">{title}</div>
                 )}
                 <div className="lg:text-4xl text-2xl font-bold text-gray-900">{year}</div>
               </div>
             ) : (
               <>
-                <div className="mb-4">
+                <div className="mb-5">
                   <div className="text-2xl font-semibold text-gray-900">
                     {monthName} {year}
                   </div>
                 </div>
                 {monthNum && calendarDays.length > 0 ? (
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="grid grid-cols-7 gap-1">
+                  <div className="bg-gray-50 rounded-xl p-5 border border-gray-200/60">
+                    <div className="grid grid-cols-7 gap-2">
                       {DAY_NAMES.map((day, index) => (
-                        <div key={`day-${index}`} className="text-center text-sm font-bold text-black py-2">
+                        <div key={`day-${index}`} className="text-center text-xs font-medium text-gray-500 py-2">
                           {day}
                         </div>
                       ))}
                       {calendarDays.map((day, index) => (
                         <div
                           key={`calendar-day-${index}`}
-                          className={`text-center py-2 text-sm ${day === null
+                          className={`text-center py-2 text-sm transition-colors duration-150 ${day === null
                             ? 'text-transparent'
-                            : 'text-gray-700 hover:bg-gray-100 rounded'
+                            : 'text-gray-700 hover:bg-gray-200/60 rounded-lg cursor-default'
                             }`}
                         >
                           {day}
@@ -264,9 +277,9 @@ export function CalendarEditor({
   };
 
   return (
-    <div className="w-full space-y-12">
+    <div className="w-full space-y-8">
       {layoutMode === 'grid' ? (
-        <div className="grid grid-cols-2 gap-8 items-stretch">
+        <div className="grid grid-cols-2 gap-6 items-stretch">
           {allSlots.map(renderSlot)}
         </div>
       ) : (
