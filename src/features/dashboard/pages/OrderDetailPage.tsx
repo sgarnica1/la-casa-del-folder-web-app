@@ -236,21 +236,20 @@ export function OrderDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="flex items-center justify-end mb-6">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-semibold text-gray-900">Detalles del Pedido</h1>
         <Button
           onClick={handleDownloadAllImages}
           disabled={isDownloading}
-          className="bg-black hover:bg-black/90 text-white flex items-center gap-2"
+          className="h-11 px-6 rounded-xl font-semibold bg-gray-900 hover:bg-gray-800 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2"
         >
           <Download className="h-4 w-4" />
           {isDownloading ? 'Descargando...' : 'Descargar Todas las fotos (ZIP)'}
         </Button>
       </div>
 
-      <h1 className="text-2xl font-bold mb-6 text-primary">Detalles del Pedido</h1>
-
-      <div className="space-y-6">
-        <div className="border rounded-lg p-6 bg-muted/20">
+      <div className="space-y-8">
+        <div className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
           <div className="flex items-start justify-between mb-4">
             <h2 className="text-lg font-semibold">Resumen del Pedido</h2>
             <div className="flex gap-2">
@@ -290,15 +289,18 @@ export function OrderDetailPage() {
               </div>
             </div>
 
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Monto Total</div>
-              <div className="text-sm font-semibold">${order.totalAmount}</div>
+            <div className="md:col-span-3 pt-4 border-t border-gray-200">
+              <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Precio final</div>
+              <div className="text-3xl font-bold text-gray-900">
+                ${order.totalAmount}
+                <span className="text-lg font-normal text-gray-500 ml-1">MXN</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="border rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Información del Cliente</h2>
+        <div className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Información del Cliente</h2>
           <div className="space-y-3">
             <div>
               <div className="text-xs text-muted-foreground mb-1">Nombre</div>
@@ -327,7 +329,7 @@ export function OrderDetailPage() {
         </div>
 
         {order.items.map((item) => (
-          <div key={item.id} className="border rounded-lg p-6 space-y-6">
+          <div key={item.id} className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)] space-y-8">
             <div>
               <h2 className="text-lg font-semibold mb-4">Producto y Diseño</h2>
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -359,14 +361,14 @@ export function OrderDetailPage() {
           </div>
         ))}
 
-        <div className="border rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Acciones de Administrador</h2>
-          <div className="flex gap-3">
+        <div className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Acciones de Administrador</h2>
+          <div className="flex gap-4">
             {order.orderStatus === 'new' && (
               <Button
                 onClick={() => handleUpdateStatus('in_production')}
                 disabled={isUpdatingStatus}
-                className="flex items-center gap-2"
+                className="h-12 px-6 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2"
               >
                 <Package className="h-4 w-4" />
                 Marcar como En Producción
@@ -376,14 +378,14 @@ export function OrderDetailPage() {
               <Button
                 onClick={() => handleUpdateStatus('shipped')}
                 disabled={isUpdatingStatus}
-                className="flex items-center gap-2"
+                className="h-12 px-6 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2"
               >
                 <CheckCircle className="h-4 w-4" />
                 Marcar como Enviado
               </Button>
             )}
             {order.orderStatus === 'shipped' && (
-              <div className="flex items-center gap-2 text-sm text-green-700">
+              <div className="flex items-center gap-2 text-sm font-medium text-green-700">
                 <CheckCircle className="h-4 w-4" />
                 Pedido completado
               </div>

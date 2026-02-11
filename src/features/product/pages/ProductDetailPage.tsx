@@ -133,16 +133,16 @@ export function ProductDetailPage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-16 items-start">
         {/* Left Column - Product Images */}
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Main Image */}
-          <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
+          <div className="relative aspect-square bg-gray-50 rounded-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.08)] group">
             <img
               src={productImages[selectedImage]}
               alt={`Product image ${selectedImage + 1}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
             />
           </div>
 
@@ -152,8 +152,11 @@ export function ProductDetailPage() {
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
-                className={`aspect-square bg-gray-200 rounded-lg overflow-hidden border-2 transition-colors ${selectedImage === index ? 'border-gray-800' : 'border-transparent hover:border-gray-300'
-                  }`}
+                className={`relative aspect-square bg-gray-50 rounded-xl overflow-hidden border-2 transition-all duration-150 ${
+                  selectedImage === index
+                    ? 'border-gray-900 scale-105 shadow-md'
+                    : 'border-gray-200 hover:border-gray-300 hover:scale-105'
+                }`}
               >
                 <img
                   src={image}
@@ -166,35 +169,37 @@ export function ProductDetailPage() {
         </div>
 
         {/* Right Column - Product Details */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Title */}
-          <div>
-            <h1 className="text-3xl md:text-4xl mb-3">
+          <div className="space-y-4">
+            <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 tracking-tight">
               Calendario en horizontal
             </h1>
-            <p className="text-muted-foreground text-base leading-relaxed">
+            <p className="text-gray-600 text-base leading-relaxed max-w-lg">
               Este fotocalendario a doble página, ideal para familias, tiene mucho espacio para tus fechas importantes.
             </p>
           </div>
 
           {/* Size Variants */}
-          <div className="space-y-3">
-            <div className="flex gap-3">
+          <div className="space-y-4">
+            <div className="inline-flex gap-2 p-1 bg-gray-100 rounded-full">
               <button
                 onClick={() => setSelectedVariant('mediano')}
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${selectedVariant === 'mediano'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary'
-                  }`}
+                className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-150 ${
+                  selectedVariant === 'mediano'
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'bg-transparent text-gray-700 hover:text-gray-900'
+                }`}
               >
                 Mediano
               </button>
               <button
                 onClick={() => setSelectedVariant('grande')}
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${selectedVariant === 'grande'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground hover:bg-primary/10 hover:text-primary'
-                  }`}
+                className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-150 ${
+                  selectedVariant === 'grande'
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'bg-transparent text-gray-700 hover:text-gray-900'
+                }`}
               >
                 Grande
               </button>
@@ -202,14 +207,15 @@ export function ProductDetailPage() {
           </div>
 
           {/* Price */}
-          <div>
-            <p className="text-2xl font-bold text-primary">
-              ${variants[selectedVariant].price.toFixed(2)} MXN
+          <div className="pt-2">
+            <p className="text-3xl font-bold text-gray-900">
+              ${variants[selectedVariant].price.toFixed(2)}
+              <span className="text-lg font-normal text-gray-500 ml-1">MXN</span>
             </p>
           </div>
 
           {/* Personalize Button */}
-          <div>
+          <div className="pt-2">
             {isLoaded && !isSignedIn ? (
               <SignInButton
                 mode={isSafariBrowser ? "redirect" : "modal"}
@@ -220,7 +226,7 @@ export function ProductDetailPage() {
               >
                 <Button
                   size="lg"
-                  className="w-full"
+                  className="w-full h-14 rounded-2xl font-semibold text-base bg-gray-900 hover:bg-gray-800 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                   onClick={handlePersonalizeClick}
                 >
                   Personalizar
@@ -232,7 +238,7 @@ export function ProductDetailPage() {
                 onClick={handlePersonalize}
                 disabled={isLoading || !isLoaded}
                 size="lg"
-                className="w-full"
+                className="w-full h-14 rounded-2xl font-semibold text-base bg-gray-900 hover:bg-gray-800 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2">
@@ -247,13 +253,13 @@ export function ProductDetailPage() {
           </div>
 
           {/* Specifications */}
-          <div className="border-t pt-6">
-            <h2 className="text-lg font-semibold text-primary mb-4">Especificaciones</h2>
-            <ul className="space-y-2">
+          <div className="pt-8 border-t border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900 mb-5">Especificaciones</h2>
+            <ul className="space-y-3">
               {specifications.map((spec, index) => (
-                <li key={index} className="text-muted-foreground flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>{spec}</span>
+                <li key={index} className="text-gray-600 flex items-start">
+                  <span className="mr-3 mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
+                  <span className="leading-relaxed">{spec}</span>
                 </li>
               ))}
             </ul>

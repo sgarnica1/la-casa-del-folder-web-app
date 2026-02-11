@@ -177,9 +177,9 @@ export function OrderConfirmationPage() {
       />
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-8">
-          <div className="space-y-2">
-            <h2 className="text-4xl font-semibold">Detalles del Pedido</h2>
-            <p className="text-sm text-muted-foreground">
+          <div className="space-y-3">
+            <h2 className="text-3xl font-semibold text-gray-900">Detalles del Pedido</h2>
+            <p className="text-base text-gray-600">
               {isInCart
                 ? 'Este artículo ya está en tu carrito'
                 : isOrdered
@@ -188,23 +188,24 @@ export function OrderConfirmationPage() {
             </p>
           </div>
 
-          <Card className="border shadow-sm">
-            <CardHeader className="space-y-3 pb-4">
+          <Card className="border border-gray-200/60 rounded-2xl shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+            <CardHeader className="space-y-4 pb-6">
               <div>
-                <CardTitle className="text-2xl font-semibold">{product?.name || 'Cargando...'}</CardTitle>
-                <CardDescription className="mt-2 text-base text-muted-foreground">
+                <CardTitle className="text-2xl font-semibold text-gray-900">{product?.name || 'Cargando...'}</CardTitle>
+                <CardDescription className="mt-3 text-base text-gray-600">
                   {product?.description || 'Cargando...'}
                 </CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-6 pt-0">
-              <div className="border-t pt-6">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Precio final</p>
-                  <p className="text-3xl font-semibold tracking-tight">
-                    {product ? formatPrice(Number(product.basePrice)) : 'Error al cargar el precio'} <span className="text-muted-foreground text-sm">MXN</span>
+              <div className="border-t border-gray-200 pt-6">
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Precio final</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {product ? formatPrice(Number(product.basePrice)) : 'Error al cargar el precio'}
+                    <span className="text-lg font-normal text-gray-500 ml-1">MXN</span>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-sm text-gray-500 mt-3">
                     No se realizará ningún cargo hasta que confirmes el pago
                   </p>
                 </div>
@@ -213,24 +214,24 @@ export function OrderConfirmationPage() {
           </Card>
 
           {canAddToCart && (
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               <button
                 onClick={handleAddToCart}
                 disabled={isAddingToCart}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium py-4 px-6 rounded-md transition-colors text-base shadow-sm"
+                className="w-full h-14 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-180 text-base shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
               >
                 {isAddingToCart ? 'Agregando...' : 'Agregar al carrito'}
               </button>
-              <p className="text-xs text-center text-muted-foreground">
+              <p className="text-xs text-center text-gray-500">
                 Podrás revisar tu carrito antes de pagar
               </p>
             </div>
           )}
 
           {isInCart && (
-            <Card className="bg-muted/30">
-              <CardContent className="pt-6">
-                <p className="text-center text-sm text-muted-foreground">
+            <Card className="border border-gray-200/60 rounded-2xl bg-gray-50 shadow-sm">
+              <CardContent className="pt-6 pb-6">
+                <p className="text-center text-sm text-gray-600">
                   Este artículo ya está en tu carrito. Puedes continuar al pago desde la página del carrito.
                 </p>
               </CardContent>

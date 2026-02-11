@@ -65,25 +65,16 @@ export function EditorPage() {
       console.log("loadData Editor Page")
       const token = await waitForToken();
       if (!token) {
-        console.warn('[EditorPage] No token available, cannot load draft');
         setIsLoading(false);
         setIsLoadingImages(false);
         return;
       }
 
       try {
-        console.log('[EditorPage] Loading data for draft', { draftId });
         const [draftData, layoutData] = await Promise.all([
           apiClient.drafts.getDraft(draftId),
           apiClient.layouts.getLayout('calendar-template'),
         ]);
-
-        console.log('[EditorPage] Data loaded', {
-          draftId: draftData.id,
-          layoutItemsCount: draftData.layoutItems.length,
-          layoutSlotsCount: layoutData.slots.length,
-          layoutSlots: layoutData.slots.map(s => ({ id: s.id, name: s.name })),
-        });
 
         setDraft(draftData);
         setLayout(layoutData);
@@ -94,16 +85,8 @@ export function EditorPage() {
             if (!id || typeof id !== 'string') return false;
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             const isValid = uuidRegex.test(id);
-            if (!isValid) {
-              console.warn('[EditorPage] Invalid UUID format', { imageId: id });
-            }
             return isValid;
           });
-
-        console.log('[EditorPage] Valid image IDs', {
-          count: imageIds.length,
-          imageIds,
-        });
 
         if (imageIds.length > 0) {
           const existingImageIds = new Set(uploadedImages.map(img => img.id));
@@ -112,24 +95,19 @@ export function EditorPage() {
           if (missingImageIds.length > 0) {
             setIsLoadingImages(true);
             try {
-              console.log('[EditorPage] Fetching missing images by IDs', { missingImageIds });
               const images = await apiClient.assets.getImagesByIds(missingImageIds);
-              console.log('[EditorPage] Images fetched', { count: images.length });
               addImagesRef.current(images);
               hasLoadedImagesRef.set(draftId, true);
             } catch (imageErr) {
-              console.error('[EditorPage] Error fetching images', imageErr);
               toastRef.current.error(imageErr);
             } finally {
               setIsLoadingImages(false);
             }
           } else {
-            console.log('[EditorPage] All images already in context');
             // Check if we need to auto-assign images before setting loading to false
             const needsAutoAssign = uploadedImages.some((img) => !draftData.layoutItems.some((item) => item.imageId === img.id));
 
             if (needsAutoAssign) {
-              console.log('[EditorPage] Images need to be auto-assigned, keeping loading state');
               // Keep isLoadingImages true - auto-assign will set it to false when done
             } else {
               setIsLoadingImages(false);
@@ -137,13 +115,11 @@ export function EditorPage() {
             hasLoadedImagesRef.set(draftId, true);
           }
         } else {
-          console.log('[EditorPage] No images to load');
           // Check if we need to auto-assign images before setting loading to false
           const needsAutoAssign = uploadedImages.length > 0 &&
             uploadedImages.some((img) => !draftData.layoutItems.some((item) => item.imageId === img.id));
 
           if (needsAutoAssign) {
-            console.log('[EditorPage] Images need to be auto-assigned, keeping loading state');
             // Keep isLoadingImages true - auto-assign will set it to false when done
           } else {
             setIsLoadingImages(false);
@@ -151,7 +127,6 @@ export function EditorPage() {
           hasLoadedImagesRef.set(draftId, true);
         }
       } catch (err) {
-        console.error('[EditorPage] Error loading data', err);
         const errorMessage = err instanceof Error ? err.message : 'No se pudo cargar el borrador';
         const errorStatus = err instanceof Error && 'status' in err ? (err as { status: number }).status : undefined;
 
@@ -161,7 +136,6 @@ export function EditorPage() {
         if (err instanceof Error && 'status' in err) {
           const status = (err as { status: number }).status;
           if (status === 401) {
-            console.warn('[EditorPage] 401 Unauthorized - authentication may not be ready');
             toastRef.current.error('Error de autenticación. Por favor, recarga la página.');
           } else {
             toastRef.current.error(err);
@@ -180,9 +154,6 @@ export function EditorPage() {
 
   useEffect(() => {
     if (!draft || !layout || !draftId || uploadedImages.length === 0 || autoAssignRef.current || isLoading || isReplacingImageRef.current || isAutoAssigning) {
-      if (isReplacingImageRef.current) {
-        console.log('[EditorPage] Skipping auto-assign - image replacement in progress');
-      }
       return;
     }
 
@@ -240,18 +211,10 @@ export function EditorPage() {
           existingItem.imageId = image.id;
         } else {
           // This shouldn't happen if draft was created correctly, but handle it
-          console.warn('[EditorPage] No existing layoutItem for slot', { slotId: slot.id });
           // Use the slot ID to generate a deterministic UUID-like structure
           // For now, skip items that don't exist in draft
         }
       }
-
-      console.log('[EditorPage] Auto-assigning images', {
-        unassignedImagesCount: unassignedImages.length,
-        unassignedSlotsCount: unassignedSlots.length,
-        updatedItemsCount: updatedItems.length,
-        updatedItems: updatedItems.map(item => ({ id: item.id, slotId: item.slotId, hasImageId: !!item.imageId })),
-      });
 
       try {
         setIsSaving(true);
@@ -259,10 +222,8 @@ export function EditorPage() {
         const updatedDraft = await apiClient.drafts.updateDraft(draftId, {
           layoutItems: updatedItems,
         });
-        console.log('[EditorPage] Auto-assign successful', { layoutItemsCount: updatedDraft.layoutItems.length });
         setDraft(updatedDraft);
       } catch (err) {
-        console.error('Failed to auto-assign images:', err);
         toastRef.current.error(err);
       } finally {
         setIsSaving(false);
@@ -336,11 +297,6 @@ export function EditorPage() {
       const result = await apiClient.assets.uploadImage(file);
       const newImage = { id: result.id, url: result.url };
 
-      console.log('[EditorPage] Image uploaded, adding to context', {
-        imageId: newImage.id,
-        slotId,
-      });
-
       // Add to uploaded images context first
       addImages([newImage]);
 
@@ -348,7 +304,6 @@ export function EditorPage() {
       const existingItem = draft.layoutItems.find((item) => item.slotId === slotId);
 
       if (!existingItem) {
-        console.error('[EditorPage] No existing layoutItem found for slot', { slotId, layoutItems: draft.layoutItems.map(li => ({ id: li.id, slotId: li.slotId })) });
         throw new Error('Layout item not found for this slot');
       }
 
@@ -357,13 +312,6 @@ export function EditorPage() {
         item.id === existingItem.id ? { ...item, imageId: newImage.id } : item
       );
 
-      console.log('[EditorPage] Updating draft with new image', {
-        slotId,
-        existingItemId: existingItem.id,
-        newImageId: newImage.id,
-        updatedItems: updatedItems.map(item => ({ id: item.id, slotId: item.slotId, imageId: item.imageId })),
-      });
-
       setIsSaving(true);
       const updatedDraft = await apiClient.drafts.updateDraft(draftId, {
         layoutItems: updatedItems,
@@ -371,19 +319,8 @@ export function EditorPage() {
 
       // Update draft state with the new layout items
       setDraft(updatedDraft);
-
-      const updatedSlotItem = updatedDraft.layoutItems.find(item => item.slotId === slotId);
-      console.log('[EditorPage] Image replaced successfully', {
-        slotId,
-        imageId: newImage.id,
-        updatedDraftLayoutItems: updatedDraft.layoutItems.length,
-        slotItem: updatedSlotItem,
-        slotItemHasImage: !!updatedSlotItem?.imageId,
-      });
-
       toastRef.current.success('Imagen subida exitosamente');
     } catch (err) {
-      console.error('[EditorPage] Failed to replace image', err);
       toastRef.current.error(err);
     } finally {
       // Clean up
@@ -400,7 +337,6 @@ export function EditorPage() {
       // Allow auto-assign again after a short delay
       setTimeout(() => {
         isReplacingImageRef.current = false;
-        console.log('[EditorPage] Image replacement complete, auto-assign re-enabled');
       }, 1000);
     }
   }, [draft, draftId, addImages]);
@@ -457,7 +393,6 @@ export function EditorPage() {
           ...(titleToSave !== undefined && { title: titleToSave }),
         });
         setDraft(updatedDraft);
-        console.log('[EditorPage] Title auto-saved', { title: titleToSave });
 
         // Show "Guardado" indicator for 2 seconds
         setIsSaved(true);

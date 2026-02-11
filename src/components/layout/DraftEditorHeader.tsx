@@ -58,6 +58,10 @@ export function DraftEditorHeader({
               onClick={onContinue}
               disabled={continueDisabled}
               size="lg"
+              className={`h-11 px-6 rounded-xl font-semibold transition-all duration-180 ${continueDisabled
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                }`}
             >
               {continueLabel}
             </Button>
