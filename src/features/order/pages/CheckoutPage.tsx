@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Wallet } from '@mercadopago/sdk-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@/components/ui';
+import { Image } from 'lucide-react';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useCart } from '@/contexts/CartContext';
 import type { UserAddress, CreateAddressInput } from '@/services/api/user-api';
+import type { Draft } from '@/types';
 
 const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('es-MX', {
@@ -32,7 +34,9 @@ export function CheckoutPage() {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [isLoadingPreference, setIsLoadingPreference] = useState(false);
   const [orderTotal, setOrderTotal] = useState<number | null>(null);
-  const [orderItems, setOrderItems] = useState<Array<{ id: string; quantity: number; unitPrice: number }>>([]);
+  const [orderItems, setOrderItems] = useState<Array<{ id: string; draftId: string; productId: string; productName: string; quantity: number; unitPrice: number }>>([]);
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [draftCoverUrls, setDraftCoverUrls] = useState<Record<string, string | null>>({});
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const preferenceCreationRef = useRef<boolean>(false);
   const lastFormStateRef = useRef<boolean>(false);
@@ -162,6 +166,45 @@ export function CheckoutPage() {
     loadData();
   }, [cart, navigate, orderId]);
 
+  // Load drafts for titles and cover images
+  useEffect(() => {
+    if (!cart || cart.items.length === 0) {
+      return;
+    }
+
+    const loadDrafts = async () => {
+      try {
+        const uniqueDraftIds = [...new Set(cart.items.map(item => item.draftId))];
+
+        // Fetch all drafts with cover URLs
+        const allDrafts = await apiClient.drafts.getMyDrafts();
+        const coverUrlMap: Record<string, string | null> = {};
+        allDrafts.forEach(draft => {
+          coverUrlMap[draft.id] = draft.coverUrl;
+        });
+
+        // Fetch individual drafts for titles and other data
+        const draftResults = await Promise.all(
+          uniqueDraftIds.map(async (draftId) => {
+            try {
+              const draft = await apiClient.drafts.getDraft(draftId);
+              return { [draftId]: draft };
+            } catch {
+              return {};
+            }
+          })
+        );
+        const draftsMap = draftResults.reduce((acc, curr) => ({ ...acc, ...curr }), {});
+        setDrafts(draftsMap);
+        setDraftCoverUrls(coverUrlMap);
+      } catch (err) {
+        console.error('Failed to load drafts:', err);
+      }
+    };
+
+    loadDrafts();
+  }, [cart]);
+
   const isFormComplete = () => {
     // Check required customer fields
     if (!customerData.firstName || !customerData.lastName) {
@@ -261,11 +304,17 @@ export function CheckoutPage() {
 
       // Store order summary before cart is cleared
       setOrderTotal(cart.total);
-      setOrderItems(cart.items.map(item => ({
-        id: item.id,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      })));
+      setOrderItems(cart.items.map(item => {
+        const product = cart.products?.[item.productId];
+        return {
+          id: item.id,
+          draftId: item.draftId,
+          productId: item.productId,
+          productName: product?.name || 'Producto',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        };
+      }));
 
       // Create payment preference
       setIsLoadingPreference(true);
@@ -364,7 +413,7 @@ export function CheckoutPage() {
   return (
     <PublicLayout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+        <h1 className="text-3xl font-bold mb-8">Finalizar Compra</h1>
 
         <div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -487,7 +536,7 @@ export function CheckoutPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">
-                          Street Address 1 <span className="text-destructive">*</span>
+                          Dirección 1 <span className="text-destructive">*</span>
                         </label>
                         <Input
                           value={newAddress.addressLine1}
@@ -497,7 +546,7 @@ export function CheckoutPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Street Address 2 (optional)</label>
+                        <label className="block text-sm font-medium mb-2">Dirección 2 (opcional)</label>
                         <Input
                           value={newAddress.addressLine2 || ''}
                           onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
@@ -506,7 +555,7 @@ export function CheckoutPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">
-                          City <span className="text-destructive">*</span>
+                          Ciudad <span className="text-destructive">*</span>
                         </label>
                         <Input
                           value={newAddress.city}
@@ -517,7 +566,7 @@ export function CheckoutPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">
-                          State/Province <span className="text-destructive">*</span>
+                          Estado/Provincia <span className="text-destructive">*</span>
                         </label>
                         <Input
                           value={newAddress.state}
@@ -528,7 +577,7 @@ export function CheckoutPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">
-                          Postal Code <span className="text-destructive">*</span>
+                          Código Postal <span className="text-destructive">*</span>
                         </label>
                         <Input
                           value={newAddress.postalCode}
@@ -539,7 +588,7 @@ export function CheckoutPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">
-                          Country <span className="text-destructive">*</span>
+                          País <span className="text-destructive">*</span>
                         </label>
                         <Input
                           value={newAddress.country}
@@ -576,21 +625,57 @@ export function CheckoutPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
-                    {(orderItems.length > 0 ? orderItems : (cart?.items || [])).map((item) => (
-                      <div key={item.id} className="flex justify-between items-start border-b pb-3">
-                        <div className="flex-1">
-                          <div className="font-medium">Item #{item.id.slice(0, 8)}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Cantidad: {item.quantity}
+                    {(orderItems.length > 0 ? orderItems : (cart?.items || [])).map((item) => {
+                      const productName = 'productName' in item
+                        ? item.productName
+                        : (cart?.products?.[item.productId]?.name || 'Producto');
+                      const draft = drafts[item.draftId];
+                      const draftTitle = draft?.title || 'Sin título';
+                      const coverUrl = draftCoverUrls[item.draftId];
+
+                      return (
+                        <div key={item.id} className="flex gap-4 items-start border-b pb-3">
+                          <div className="w-16 h-16 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+                            {coverUrl ? (
+                              <img
+                                src={coverUrl}
+                                alt={draftTitle}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const parent = target.parentElement;
+                                  if (parent && !parent.querySelector('svg')) {
+                                    const icon = document.createElement('div');
+                                    icon.className = 'w-full h-full flex items-center justify-center';
+                                    icon.innerHTML = '<svg class="h-6 w-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                                    parent.appendChild(icon);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Image className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium">{productName}</div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {draftTitle}
+                            </div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Cantidad: {item.quantity}
+                            </div>
+                          </div>
+                          <div className="font-medium flex-shrink-0">
+                            {formatPrice(item.unitPrice * item.quantity)}
                           </div>
                         </div>
-                        <div className="font-medium">
-                          {formatPrice(item.unitPrice * item.quantity)}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                  <div className="pt-4 border-t">
+                  <div className="pt-4">
                     <div className="flex justify-between items-center text-lg font-bold">
                       <span>Total</span>
                       <span>{formatPrice(orderTotal ?? cart?.total ?? 0)}</span>
