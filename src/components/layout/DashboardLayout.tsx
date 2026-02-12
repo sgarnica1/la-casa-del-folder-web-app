@@ -33,25 +33,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <UploadedImagesProvider>
       <div className="min-h-screen bg-background flex">
         {/* Sidebar */}
-        <aside className={`hidden md:flex flex-col w-64 border-r bg-white sticky top-0 h-screen transition-transform ${sidebarOpen ? 'translate-x-0' : ''
+        <aside className={`hidden md:flex flex-col w-64 border-r border-gray-200/60 bg-white sticky top-0 h-screen transition-transform ${sidebarOpen ? 'translate-x-0' : ''
           }`}>
-          <div className="p-4 border-b flex-shrink-0">
-            <h2 className="text-xl font-bold text-primary">Dashboard</h2>
+          <div className="px-5 h-16 border-b border-gray-200/60 flex-shrink-0 flex items-center">
+            <div className="flex items-center gap-3">
+              <img
+                src="/assets/images/logo-casa-folder.svg"
+                alt="La Casa del Folder"
+                className="h-6 w-auto"
+              />
+            </div>
           </div>
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <p className='text-xs font-medium text-muted-foreground'>Administración</p>
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-2 mb-1'>Administración</p>
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-foreground/70 hover:bg-accent/10 hover:text-primary'
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-180 ${isActive(item.path)
+                    ? 'bg-blue-50 text-blue-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className={`h-5 w-5 ${isActive(item.path) ? 'text-blue-600' : 'text-gray-400'}`} />
                   {item.label}
                 </Link>
               );
@@ -62,12 +68,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="sticky top-0 z-10 border-b bg-white flex-shrink-0">
-            <div className="px-4 py-4 flex items-center justify-between">
+          <header className="sticky top-0 z-10 border-b border-gray-200/60 bg-white flex-shrink-0 shadow-sm h-16">
+            <div className="px-6 h-full flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="md:hidden p-2 rounded-md hover:bg-gray-100"
+                  className="md:hidden p-2 rounded-xl hover:bg-gray-100 transition-all duration-180"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -76,7 +82,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 {showBackButton && (
                   <button
                     onClick={handleBack}
-                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                    className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-180"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Volver
@@ -86,7 +92,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="flex items-center gap-2">
                 <SignedOut>
                   <SignInButton mode="modal">
-                    <button className="text-sm font-medium text-gray-600 hover:text-gray-900">
+                    <button className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-180">
                       Iniciar Sesión
                     </button>
                   </SignInButton>
@@ -112,22 +118,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           />
         )}
         <aside
-          className={`fixed top-0 left-0 h-full w-64 bg-white border-r z-50 transform transition-transform md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200/60 z-50 transform transition-transform md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
         >
-          <div className="p-4 border-b flex items-center justify-between">
-            <h2 className="text-xl font-bold text-primary">Dashboard</h2>
+          <div className="p-6 border-b border-gray-200/60 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src="/assets/images/logo-casa-folder.svg"
+                alt="La Casa del Folder"
+                className="h-8 w-auto"
+              />
+              <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-2 rounded-md hover:bg-accent/10"
+              className="p-2 rounded-xl hover:bg-gray-100 transition-all duration-180"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <nav className="p-4 space-y-2">
-            <p className='text-xs font-medium text-muted-foreground'>Administración</p>
+          <nav className="p-4 space-y-1">
+            <p className='text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-2 mb-1'>Administración</p>
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -135,12 +148,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   key={item.path}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive(item.path)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-foreground/70 hover:bg-accent/10 hover:text-primary'
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-180 ${isActive(item.path)
+                    ? 'bg-blue-50 text-blue-700 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className={`h-5 w-5 ${isActive(item.path) ? 'text-blue-600' : 'text-gray-400'}`} />
                   {item.label}
                 </Link>
               );
