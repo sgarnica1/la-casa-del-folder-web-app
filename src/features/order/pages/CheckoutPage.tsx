@@ -338,6 +338,19 @@ export function CheckoutPage() {
     }
   };
 
+  // Reset preference and order when form data changes after preference is created
+  // This allows users to edit their information and create a new order/preference
+  useEffect(() => {
+    if (preferenceId) {
+      // Reset preference when user changes any form data
+      setPreferenceId(null);
+      setOrderId(null);
+      lastFormStateRef.current = false;
+      preferenceCreationRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerData.firstName, customerData.lastName, customerData.phone, selectedAddressId, showNewAddressForm, newAddress.addressLine1, newAddress.addressLine2, newAddress.city, newAddress.state, newAddress.postalCode, newAddress.country]);
+
   // Auto-create order and preference when form becomes complete
   // Only trigger if user has actively filled the form (not just pre-filled data)
   useEffect(() => {
@@ -432,7 +445,7 @@ export function CheckoutPage() {
                           value={customerData.firstName}
                           onChange={(e) => setCustomerData({ ...customerData, firstName: e.target.value })}
                           required
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                     </div>
@@ -444,7 +457,7 @@ export function CheckoutPage() {
                           value={customerData.lastName}
                           onChange={(e) => setCustomerData({ ...customerData, lastName: e.target.value })}
                           required
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                     </div>
@@ -464,7 +477,7 @@ export function CheckoutPage() {
                       maxLength={10}
                       placeholder="Ej: 5512345678"
                       required
-                      disabled={!!preferenceId}
+                      disabled={isSubmitting}
                       className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors"
                     />
                     {customerData.phone && customerData.phone.length !== 10 && (
@@ -507,7 +520,7 @@ export function CheckoutPage() {
                               checked={selectedAddressId === address.id}
                               onChange={() => setSelectedAddressId(address.id)}
                               className="mt-1"
-                              disabled={!!preferenceId}
+                              disabled={isSubmitting}
                             />
                             <div className="flex-1">
                               <div className="text-sm text-gray-700 leading-relaxed">
@@ -529,7 +542,7 @@ export function CheckoutPage() {
                           setShowNewAddressForm(true);
                           setSelectedAddressId(null);
                         }}
-                        disabled={!!preferenceId}
+                        disabled={isSubmitting}
                         className="rounded-xl h-10"
                       >
                         Agregar nueva dirección
@@ -545,7 +558,7 @@ export function CheckoutPage() {
                           value={newAddress.addressLine1}
                           onChange={(e) => setNewAddress({ ...newAddress, addressLine1: e.target.value })}
                           required
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
@@ -554,7 +567,7 @@ export function CheckoutPage() {
                         <Input
                           value={newAddress.addressLine2 || ''}
                           onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
@@ -566,7 +579,7 @@ export function CheckoutPage() {
                           value={newAddress.city}
                           onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
                           required
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
@@ -578,7 +591,7 @@ export function CheckoutPage() {
                           value={newAddress.state}
                           onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
                           required
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
@@ -590,7 +603,7 @@ export function CheckoutPage() {
                           value={newAddress.postalCode}
                           onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
                           required
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
@@ -602,7 +615,7 @@ export function CheckoutPage() {
                           value={newAddress.country}
                           onChange={(e) => setNewAddress({ ...newAddress, country: e.target.value })}
                           required
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
                         />
                       </div>
@@ -616,7 +629,7 @@ export function CheckoutPage() {
                               setSelectedAddressId(addresses[0].id);
                             }
                           }}
-                          disabled={!!preferenceId}
+                          disabled={isSubmitting}
                           className="rounded-xl h-10"
                         >
                           Usar dirección existente
