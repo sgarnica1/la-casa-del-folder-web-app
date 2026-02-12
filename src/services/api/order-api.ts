@@ -1,6 +1,6 @@
 import { BaseApiClient } from './base-api-client';
 import { handleResponse, handleFetchError } from './base-api-client';
-import type { Order, OrderDetail } from '@/types';
+import type { Order, OrderDetail, OrderActivity } from '@/types';
 
 export class OrderApi extends BaseApiClient {
   async createOrder(draftId: string): Promise<{ orderId: string }> {
@@ -86,6 +86,19 @@ export class OrderApi extends BaseApiClient {
         headers,
       });
       return handleResponse<OrderDetail>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getOrderActivities(orderId: string): Promise<OrderActivity[]> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/orders/${orderId}/activities`, {
+        headers,
+      });
+      const data = await handleResponse<{ activities: OrderActivity[] }>(response);
+      return data.activities;
     } catch (error) {
       return handleFetchError(error);
     }

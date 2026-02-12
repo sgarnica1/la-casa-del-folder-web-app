@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import JSZip from 'jszip';
-import { Download, Copy, Package, CheckCircle } from 'lucide-react';
-import { Skeleton, Button } from '@/components/ui';
+import { Download, Package, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
-import type { OrderDetail, DesignSnapshotLayoutItem, DesignSnapshotImage } from '@/types';
+import { OrderActivityTimeline } from '../components/OrderActivityTimeline';
+import type { OrderDetail, DesignSnapshotLayoutItem, OrderActivity } from '@/types';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -90,26 +91,26 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
     if (type === 'order') {
       switch (status) {
         case 'new':
-          return 'bg-primary/10 text-primary border-primary/20';
+          return 'bg-blue-50 text-blue-700';
         case 'in_production':
-          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
+          return 'bg-amber-50 text-amber-700';
         case 'shipped':
-          return 'bg-green-100 text-green-800 border-green-200';
+          return 'bg-emerald-50 text-emerald-700';
         default:
-          return 'bg-muted text-muted-foreground border-border';
+          return 'bg-gray-50 text-gray-700';
       }
     } else {
       switch (status.toLowerCase()) {
         case 'pending':
-          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
+          return 'bg-amber-50 text-amber-700';
         case 'paid':
-          return 'bg-green-100 text-green-800 border-green-200';
+          return 'bg-emerald-50 text-emerald-700';
         case 'failed':
-          return 'bg-accent/10 text-accent border-accent/20';
+          return 'bg-red-50 text-red-700';
         case 'refunded':
-          return 'bg-purple-100 text-purple-800 border-purple-200';
+          return 'bg-purple-50 text-purple-700';
         default:
-          return 'bg-muted text-muted-foreground border-border';
+          return 'bg-gray-50 text-gray-700';
       }
     }
   };
@@ -119,23 +120,23 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
     : PAYMENT_STATUS_LABELS[status] || status;
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor()}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${getStatusColor()}`}>
       {label}
     </span>
   );
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
-}
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [imageMap, setImageMap] = useState<Map<string, string>>(new Map());
+  const [activities, setActivities] = useState<OrderActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<'in_production' | 'shipped' | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -144,8 +145,12 @@ export function OrderDetailPage() {
     const loadOrder = async () => {
       setIsLoading(true);
       try {
-        const data = await apiClient.orders.getOrderById(id);
+        const [data, activitiesData] = await Promise.all([
+          apiClient.orders.getOrderById(id),
+          apiClient.orders.getOrderActivities(id),
+        ]);
         setOrder(data);
+        setActivities(activitiesData);
 
         const imageMap = new Map<string, string>();
         data.items.forEach((item) => {
@@ -173,19 +178,37 @@ export function OrderDetailPage() {
     loadOrder();
   }, [id, toast]);
 
-  const handleUpdateStatus = async (newStatus: 'in_production' | 'shipped') => {
-    if (!order || !id) return;
+  const handleStatusChangeClick = (newStatus: 'in_production' | 'shipped') => {
+    setPendingStatus(newStatus);
+    setShowConfirmDialog(true);
+  };
 
+  const handleConfirmStatusChange = async () => {
+    if (!order || !id || !pendingStatus) return;
+
+    setShowConfirmDialog(false);
     setIsUpdatingStatus(true);
     try {
-      await apiClient.orders.updateOrderStatus(id, newStatus);
-      setOrder({ ...order, orderStatus: newStatus });
-      toast.success(`Estado actualizado a ${ORDER_STATUS_LABELS[newStatus]}`);
+      await apiClient.orders.updateOrderStatus(id, pendingStatus);
+      setOrder({ ...order, orderStatus: pendingStatus });
+
+      // Reload activities to show the new status change
+      const activitiesData = await apiClient.orders.getOrderActivities(id);
+      setActivities(activitiesData);
+
+      toast.success(`Estado actualizado a ${ORDER_STATUS_LABELS[pendingStatus]}`);
+      setPendingStatus(null);
     } catch (err) {
       toast.error(err);
+      setPendingStatus(null);
     } finally {
       setIsUpdatingStatus(false);
     }
+  };
+
+  const handleCancelStatusChange = () => {
+    setShowConfirmDialog(false);
+    setPendingStatus(null);
   };
 
   const handleDownloadAllImages = async () => {
@@ -234,355 +257,301 @@ export function OrderDetailPage() {
     .filter(Boolean)
     .join(' ') || 'Cliente';
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-semibold text-gray-900">Detalles del Pedido</h1>
-        <Button
-          onClick={handleDownloadAllImages}
-          disabled={isDownloading}
-          className="h-11 px-6 rounded-xl font-semibold bg-gray-900 hover:bg-gray-800 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2"
-        >
-          <Download className="h-4 w-4" />
-          {isDownloading ? 'Descargando...' : 'Descargar Todas las fotos (ZIP)'}
-        </Button>
-      </div>
+  // Calculate totals
+  const subtotal = order.items.reduce((sum, item) => sum + parseFloat(item.priceSnapshot) * item.quantity, 0);
+  const total = parseFloat(order.totalAmount);
 
-      <div className="space-y-8">
-        <div className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
-          <div className="flex items-start justify-between mb-4">
-            <h2 className="text-lg font-semibold">Resumen del Pedido</h2>
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      {/* Top Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold text-gray-900 mb-2">Pedido #{order.id.slice(0, 8)}</h1>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span>
+                  {new Date(order.createdAt).toLocaleDateString('es-ES', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
             <div className="flex gap-2">
               <StatusBadge status={order.orderStatus} type="order" />
               <StatusBadge status={order.paymentStatus} type="payment" />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">ID del Pedido</div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono">{order.id.slice(0, 16)}...</span>
-                <button
-                  onClick={() => {
-                    copyToClipboard(order.id);
-                    toast.success('ID copiado');
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                  title="Copiar ID completo"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Fecha de Creación</div>
-              <div className="text-sm">
-                {new Date(order.createdAt).toLocaleDateString('es-ES', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </div>
-            </div>
-
-            <div className="md:col-span-3 pt-4 border-t border-gray-200">
-              <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Precio final</div>
-              <div className="text-3xl font-bold text-gray-900">
-                ${order.totalAmount}
-                <span className="text-lg font-normal text-gray-500 ml-1">MXN</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Información del Cliente</h2>
-          <div className="space-y-3">
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Nombre</div>
-              <div className="text-sm font-medium">{customerName}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Email</div>
-              <div className="text-sm">{order.customer?.email || 'No disponible'}</div>
-            </div>
-            {order.address && (
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">Dirección de Envío</div>
-                <div className="text-sm">
-                  <div>{order.address.name}</div>
-                  <div>{order.address.addressLine1}</div>
-                  {order.address.addressLine2 && <div>{order.address.addressLine2}</div>}
-                  <div>
-                    {order.address.city}, {order.address.state} {order.address.postalCode}
-                  </div>
-                  <div>{order.address.country}</div>
-                  {order.address.phone && <div className="mt-1">Tel: {order.address.phone}</div>}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {order.items.map((item) => (
-          <div key={item.id} className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)] space-y-8">
-            <div>
-              <h2 className="text-lg font-semibold mb-4">Producto y Diseño</h2>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Producto</div>
-                  <div className="text-sm font-medium">{item.productNameSnapshot}</div>
-                </div>
-                {item.variantNameSnapshot && (
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">Variante</div>
-                    <div className="text-sm">{item.variantNameSnapshot}</div>
-                  </div>
-                )}
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Cantidad</div>
-                  <div className="text-sm">{item.quantity}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Precio</div>
-                  <div className="text-sm font-semibold">${item.priceSnapshot}</div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold mb-4">Reconstrucción del Diseño</h3>
-              <DesignReconstruction snapshot={item.designSnapshotJson} imageMap={imageMap} />
-            </div>
-          </div>
-        ))}
-
-        <div className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Acciones de Administrador</h2>
-          <div className="flex gap-4">
             {order.orderStatus === 'new' && (
               <Button
-                onClick={() => handleUpdateStatus('in_production')}
+                onClick={() => handleStatusChangeClick('in_production')}
                 disabled={isUpdatingStatus}
-                className="h-12 px-6 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2"
+                className="h-10 px-4 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
                 <Package className="h-4 w-4" />
-                Marcar como En Producción
+                En Producción
               </Button>
             )}
             {order.orderStatus === 'in_production' && (
               <Button
-                onClick={() => handleUpdateStatus('shipped')}
+                onClick={() => handleStatusChangeClick('shipped')}
                 disabled={isUpdatingStatus}
-                className="h-12 px-6 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2"
+                className="h-10 px-4 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
                 <CheckCircle className="h-4 w-4" />
-                Marcar como Enviado
+                Enviado
               </Button>
             )}
-            {order.orderStatus === 'shipped' && (
-              <div className="flex items-center gap-2 text-sm font-medium text-green-700">
-                <CheckCircle className="h-4 w-4" />
-                Pedido completado
-              </div>
-            )}
+            <Button
+              onClick={handleDownloadAllImages}
+              disabled={isDownloading}
+              className="h-10 px-4 rounded-xl font-semibold bg-gray-900 hover:bg-gray-800 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isDownloading ? 'Descargando...' : 'Descargar ZIP'}
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Left Column - Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Items Purchased */}
+          <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Productos Comprados</h2>
+            <div className="space-y-4">
+              {order.items.map((item) => {
+                const snapshot = item.designSnapshotJson as { layoutItems?: DesignSnapshotLayoutItem[] } | null;
+                const firstImage = snapshot?.layoutItems?.[0]?.images?.[0];
+                const imageUrl = firstImage ? (imageMap.get(firstImage.cloudinaryPublicId) || firstImage.secureUrl) : null;
+
+                return (
+                  <div key={item.id} className="flex gap-4 p-4 border border-gray-100 rounded-xl">
+                    {imageUrl && (
+                      <img
+                        src={imageUrl}
+                        alt={item.productNameSnapshot}
+                        className="w-20 h-20 object-cover rounded-lg"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 mb-1">{item.productNameSnapshot}</h3>
+                      {item.variantNameSnapshot && (
+                        <p className="text-sm text-gray-600 mb-2">{item.variantNameSnapshot}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span>Cantidad: <strong className="text-gray-900">{item.quantity}</strong></span>
+                        <span>Precio: <strong className="text-gray-900">${item.priceSnapshot}</strong></span>
+                        <span className="ml-auto font-semibold text-gray-900">
+                          ${(parseFloat(item.priceSnapshot) * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Payment Details */}
+          <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Detalles de Pago</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="text-gray-900 font-medium">${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Envío</span>
+                <span className="text-gray-900 font-medium">$0.00</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Impuestos</span>
+                <span className="text-gray-900 font-medium">$0.00</span>
+              </div>
+              <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
+                <span className="text-base font-semibold text-gray-900">Total</span>
+                <span className="text-2xl font-bold text-gray-900">
+                  ${total.toFixed(2)}
+                  <span className="text-lg font-normal text-gray-500 ml-1">MXN</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Images to Download */}
+          <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Imágenes para Descargar</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {order.items.map((item) => {
+                const snapshot = item.designSnapshotJson as { layoutItems?: DesignSnapshotLayoutItem[] } | null;
+                if (!snapshot?.layoutItems) return null;
+
+                return snapshot.layoutItems.map((layoutItem, idx) => {
+                  if (!layoutItem.images || layoutItem.images.length === 0) return null;
+                  const image = layoutItem.images[0];
+                  const imageUrl = imageMap.get(image.cloudinaryPublicId) || image.secureUrl;
+                  const monthLabel = getMonthLabel(layoutItem.layoutIndex);
+
+                  return (
+                    <div key={`${item.id}-${idx}`} className="relative group">
+                      <img
+                        src={imageUrl}
+                        alt={monthLabel}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-lg flex items-center justify-center">
+                        <button
+                          onClick={() => downloadImage(imageUrl, `${monthLabel}_${image.cloudinaryPublicId}.jpg`)}
+                          className="opacity-0 group-hover:opacity-100 bg-white p-2 rounded-full shadow-lg transition-opacity"
+                          title="Descargar"
+                        >
+                          <Download className="h-4 w-4 text-gray-700" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1 text-center">{monthLabel}</p>
+                    </div>
+                  );
+                });
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-24 space-y-6">
+            {/* Customer Information */}
+            <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Cliente</h2>
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Nombre</div>
+                  <div className="text-sm font-semibold text-gray-900">{customerName}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Email</div>
+                  <div className="text-sm text-gray-700">{order.customer?.email || 'No disponible'}</div>
+                </div>
+                {order.address?.phone && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Teléfono</div>
+                    <div className="text-sm text-gray-700">{order.address.phone}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Shipping Address */}
+            {(() => {
+              const shippingAddress = order.shippingAddressJson as {
+                addressLine1?: string;
+                addressLine2?: string | null;
+                city?: string;
+                state?: string;
+                postalCode?: string;
+                country?: string;
+                customer?: {
+                  firstName?: string | null;
+                  lastName?: string | null;
+                  email?: string;
+                  phone?: string | null;
+                };
+              } | null;
+
+              if (!shippingAddress || !shippingAddress.addressLine1) {
+                return null;
+              }
+
+              return (
+                <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Dirección de Envío</h2>
+                  <div className="text-sm text-gray-700 space-y-1 leading-relaxed">
+                    {shippingAddress.customer?.firstName || shippingAddress.customer?.lastName ? (
+                      <div className="font-medium text-gray-900 mb-2">
+                        {[shippingAddress.customer.firstName, shippingAddress.customer.lastName].filter(Boolean).join(' ')}
+                      </div>
+                    ) : null}
+                    <div>{shippingAddress.addressLine1}</div>
+                    {shippingAddress.addressLine2 && <div>{shippingAddress.addressLine2}</div>}
+                    <div>
+                      {shippingAddress.city}, {shippingAddress.state} {shippingAddress.postalCode}
+                    </div>
+                    <div>{shippingAddress.country}</div>
+                    {shippingAddress.customer?.phone && <div className="mt-2 text-gray-600">Tel: {shippingAddress.customer.phone}</div>}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Activity Timeline */}
+            <OrderActivityTimeline activities={activities} />
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={(open) => {
+        if (!open) {
+          handleCancelStatusChange();
+        }
+      }}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-gray-200 shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
+          <DialogHeader>
+            <div className="flex items-start gap-3 mb-2">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <DialogTitle className="text-xl font-semibold text-gray-900 text-left">
+                  Confirmar cambio de estado
+                </DialogTitle>
+              </div>
+            </div>
+            <DialogDescription className="text-left pt-2">
+              <p className="text-sm text-gray-600 mb-4">
+                ¿Estás seguro de que deseas cambiar el estado del pedido a{' '}
+                <strong className="text-gray-900 font-semibold">{pendingStatus ? ORDER_STATUS_LABELS[pendingStatus] : ''}</strong>?
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-sm text-red-800 font-semibold mb-1">
+                  Esta acción no se puede deshacer
+                </p>
+                <p className="text-xs text-red-700">
+                  El cambio de estado será permanente y se registrará en el historial del pedido.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-0 sm:justify-end pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelStatusChange}
+              disabled={isUpdatingStatus}
+              className="w-full sm:w-auto rounded-xl border-gray-300 hover:bg-gray-50"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmStatusChange}
+              disabled={isUpdatingStatus}
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50 shadow-sm hover:shadow-md transition-all duration-180"
+            >
+              {isUpdatingStatus ? 'Actualizando...' : 'Confirmar cambio'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function DesignReconstruction({
-  snapshot,
-  imageMap,
-}: {
-  snapshot: unknown;
-  imageMap: Map<string, string>;
-}) {
-  if (!snapshot || typeof snapshot !== 'object') {
-    return (
-      <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-        Datos de snapshot inválidos: {JSON.stringify(snapshot)}
-      </div>
-    );
-  }
-
-  const design = snapshot as {
-    draftId?: string;
-    productId?: string;
-    templateId?: string | null;
-    layoutItems?: DesignSnapshotLayoutItem[];
-  };
-
-  if (!design.layoutItems || !Array.isArray(design.layoutItems)) {
-    return (
-      <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-        layoutItems faltantes o inválidos: {JSON.stringify(design)}
-      </div>
-    );
-  }
-
-  const sortedItems = [...design.layoutItems].sort((a, b) => a.layoutIndex - b.layoutIndex);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div>Draft ID: <span className="font-mono">{design.draftId || 'N/A'}</span></div>
-          <div>Product ID: <span className="font-mono">{design.productId || 'N/A'}</span></div>
-          <div>Template ID: <span className="font-mono">{design.templateId || 'N/A'}</span></div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {sortedItems.map((item, index) => (
-          <LayoutItemRenderer key={index} item={item} imageMap={imageMap} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LayoutItemRenderer({
-  item,
-  imageMap,
-}: {
-  item: DesignSnapshotLayoutItem;
-  imageMap: Map<string, string>;
-}) {
-  const monthLabel = getMonthLabel(item.layoutIndex);
-
-  if (item.type === 'text') {
-    return (
-      <div className="border rounded-lg p-3 bg-muted/20">
-        <div className="text-xs font-semibold text-primary mb-2">{monthLabel}</div>
-        <div className="text-xs text-muted-foreground mb-1">Slot de Texto</div>
-        <div className="text-xs text-muted-foreground">Índice: {item.layoutIndex}</div>
-      </div>
-    );
-  }
-
-  if (!item.images || item.images.length === 0) {
-    return (
-      <div className="border rounded-lg p-3 bg-muted/20">
-        <div className="text-xs font-semibold text-primary mb-2">{monthLabel}</div>
-        <div className="text-xs text-muted-foreground mb-2">Slot de foto</div>
-        <div className="w-full h-32 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
-          Sin foto
-        </div>
-        <div className="text-xs text-muted-foreground mt-2">Índice: {item.layoutIndex}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="border rounded-lg p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-semibold text-blue-600">{monthLabel}</div>
-        <div className="text-xs text-muted-foreground">#{item.layoutIndex}</div>
-      </div>
-      {item.images.map((image, imgIndex) => (
-        <ImageRenderer
-          key={imgIndex}
-          image={image}
-          imageUrl={imageMap.get(image.cloudinaryPublicId) || image.secureUrl}
-          monthLabel={monthLabel}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ImageRenderer({
-  image,
-  imageUrl,
-  monthLabel,
-}: {
-  image: DesignSnapshotImage;
-  imageUrl: string | undefined;
-  monthLabel: string;
-}) {
-  const transform = image.transform as
-    | { x?: number; y?: number; scale?: number; rotation?: number }
-    | null;
-
-  const style: React.CSSProperties = {
-    width: '100%',
-    height: '128px',
-    objectFit: 'cover' as const,
-    borderRadius: '4px',
-  };
-
-  if (transform) {
-    const transforms: string[] = [];
-    if (transform.x !== undefined || transform.y !== undefined) {
-      transforms.push(`translate(${transform.x ?? 0}px, ${transform.y ?? 0}px)`);
-    }
-    if (transform.scale !== undefined) {
-      transforms.push(`scale(${transform.scale})`);
-    }
-    if (transform.rotation !== undefined) {
-      transforms.push(`rotate(${transform.rotation}deg)`);
-    }
-    if (transforms.length > 0) {
-      style.transform = transforms.join(' ');
-    }
-  }
-
-  const handleDownload = () => {
-    if (imageUrl) {
-      const filename = `${monthLabel}_${image.cloudinaryPublicId}.jpg`;
-      downloadImage(imageUrl, filename);
-    }
-  };
-
-  if (!imageUrl) {
-    return (
-      <div className="relative overflow-hidden rounded">
-        <div className="w-full h-32 bg-muted rounded flex items-center justify-center text-xs text-muted-foreground p-2 text-center">
-          foto no encontrada
-        </div>
-        <div className="text-xs text-muted-foreground mt-1">
-          {image.width}x{image.height}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative overflow-hidden rounded group">
-      <img
-        src={imageUrl}
-        alt={`Image ${image.cloudinaryPublicId}`}
-        style={style}
-        onError={(e) => {
-          const target = e.target as HTMLImageElement;
-          target.style.display = 'none';
-          const parent = target.parentElement;
-          if (parent) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className =
-              'w-full h-32 bg-destructive/10 flex items-center justify-center text-xs text-destructive';
-            errorDiv.textContent = 'Error al cargar foto';
-            parent.appendChild(errorDiv);
-          }
-        }}
-      />
-      <button
-        onClick={handleDownload}
-        className="absolute top-2 right-2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Descargar foto"
-      >
-        <Download className="h-4 w-4 text-gray-700" />
-      </button>
-      <div className="text-xs text-muted-foreground mt-1">
-        {image.width}x{image.height}
-      </div>
-    </div>
-  );
-}

@@ -35,13 +35,6 @@ export function EditorPage() {
   const toastRef = useRef(toast);
 
   useEffect(() => {
-    console.log("isLoading Editor Page", isLoading)
-    console.log("isLoaded Editor Page", isLoaded)
-    console.log("isLoadingImages Editor Page", isLoadingImages)
-  }, [isLoading, isLoaded, isLoadingImages])
-
-  useEffect(() => {
-    console.log("useEffect addImagesRef")
     addImagesRef.current = addImages;
     toastRef.current = toast;
   }, [addImages, toast]);
@@ -62,7 +55,6 @@ export function EditorPage() {
     autoAssignRef.current = false;
 
     const loadData = async () => {
-      console.log("loadData Editor Page")
       const token = await waitForToken();
       if (!token) {
         setIsLoading(false);

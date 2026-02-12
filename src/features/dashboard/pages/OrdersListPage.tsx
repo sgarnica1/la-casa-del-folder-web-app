@@ -26,24 +26,24 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
     if (type === 'order') {
       switch (status) {
         case 'new':
-          return 'bg-primary/10 text-primary border-primary/20';
+          return 'bg-blue-50 text-blue-700';
         case 'in_production':
-          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
+          return 'bg-amber-50 text-amber-700';
         case 'shipped':
-          return 'bg-green-100 text-green-800 border-green-200';
+          return 'bg-emerald-50 text-emerald-700';
         default:
-          return 'bg-muted text-muted-foreground border-border';
+          return 'bg-gray-50 text-gray-700';
       }
     } else {
       switch (status) {
         case 'paid':
-          return 'bg-green-100 text-green-800 border-green-200';
+          return 'bg-emerald-50 text-emerald-700';
         case 'pending':
-          return 'bg-[#ffd000]/20 text-[#b89500] border-[#ffd000]/30';
+          return 'bg-amber-50 text-amber-700';
         case 'failed':
-          return 'bg-accent/10 text-accent border-accent/20';
+          return 'bg-red-50 text-red-700';
         default:
-          return 'bg-muted text-muted-foreground border-border';
+          return 'bg-gray-50 text-gray-700';
       }
     }
   };
@@ -53,7 +53,7 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
     : PAYMENT_STATUS_LABELS[status] || status;
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor()}`}>
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor()}`}>
       {label}
     </span>
   );
@@ -178,10 +178,10 @@ export function OrdersListPage() {
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <h1 className="text-2xl font-bold mb-6">Pedidos</h1>
-        <div className="space-y-2">
+        <h1 className="text-3xl font-semibold mb-8 text-gray-900">Pedidos</h1>
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
           ))}
         </div>
       </div>
@@ -206,9 +206,9 @@ export function OrdersListPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-primary">Pedidos</h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-semibold text-gray-900">Pedidos</h1>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
           {isRefreshing && (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -223,14 +223,14 @@ export function OrdersListPage() {
 
       <div className="flex gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <label htmlFor="order-status" className="text-sm font-medium text-muted-foreground">
+          <label htmlFor="order-status" className="text-sm font-medium text-gray-700">
             Estado del Pedido:
           </label>
           <select
             id="order-status"
             value={orderStatusFilter}
             onChange={(e) => setOrderStatusFilter(e.target.value as OrderStatusFilter)}
-            className="border rounded px-3 py-1.5 text-sm bg-background"
+            className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-180"
           >
             <option value="all">Todos</option>
             <option value="new">Nuevo</option>
@@ -240,14 +240,14 @@ export function OrdersListPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <label htmlFor="payment-status" className="text-sm font-medium text-muted-foreground">
+          <label htmlFor="payment-status" className="text-sm font-medium text-gray-700">
             Estado del Pago:
           </label>
           <select
             id="payment-status"
             value={paymentStatusFilter}
             onChange={(e) => setPaymentStatusFilter(e.target.value as PaymentStatusFilter)}
-            className="border rounded px-3 py-1.5 text-sm bg-background"
+            className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-180"
           >
             <option value="all">Todos</option>
             <option value="paid">Pagado</option>
@@ -258,22 +258,22 @@ export function OrdersListPage() {
       </div>
 
       {filteredOrders.length === 0 ? (
-        <div className="text-center py-12 border rounded bg-muted/20">
-          <p className="text-muted-foreground">No hay pedidos aún</p>
+        <div className="text-center py-16 border border-gray-200/60 rounded-2xl bg-gray-50/50 shadow-sm">
+          <p className="text-gray-500">No hay pedidos aún</p>
         </div>
       ) : (
         <>
-          <div className="border rounded overflow-hidden">
+          <div className="border border-gray-200/60 rounded-2xl overflow-hidden bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
             <table className="w-full">
-              <thead className="bg-muted/50 border-b">
+              <thead className="bg-gray-50/80 border-b border-gray-200/60">
                 <tr>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">ID del Pedido</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Fecha</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">ID Usuario</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Estado Pedido</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Pago</th>
-                  <th className="text-right px-4 py-3 text-sm font-semibold">Total</th>
-                  <th className="text-center px-4 py-3 text-sm font-semibold w-12"></th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">ID del Pedido</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">Fecha</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">ID Usuario</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">Estado Pedido</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">Pago</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider">Total</th>
+                  <th className="text-center px-6 py-4 text-xs font-semibold text-gray-700 uppercase tracking-wider w-12"></th>
                 </tr>
               </thead>
               <tbody>
@@ -281,25 +281,25 @@ export function OrdersListPage() {
                   <tr
                     key={order.id}
                     onClick={() => handleRowClick(order.id)}
-                    className="border-b hover:bg-muted/30 cursor-pointer"
+                    className="border-b border-gray-100 hover:bg-gray-50/50 cursor-pointer transition-all duration-180"
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-mono">{shortenId(order.id)}</span>
+                        <span className="text-sm font-mono text-gray-900">{shortenId(order.id)}</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             copyToClipboard(order.id);
                             toast.success('ID copiado');
                           }}
-                          className="text-muted-foreground hover:text-foreground"
+                          className="text-gray-400 hover:text-gray-600 transition-colors duration-180"
                           title="Copiar ID completo"
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                    <td className="px-6 py-4 text-sm text-gray-600">
                       {new Date(order.createdAt).toLocaleDateString('es-ES', {
                         month: 'short',
                         day: 'numeric',
@@ -308,20 +308,20 @@ export function OrdersListPage() {
                         minute: '2-digit',
                       })}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-mono text-muted-foreground">{shortenId(order.userId)}</span>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-mono text-gray-500">{shortenId(order.userId)}</span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <StatusBadge status={order.orderStatus} type="order" />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <StatusBadge status={order.paymentStatus} type="payment" />
                     </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold">${order.totalAmount}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">${order.totalAmount}</td>
+                    <td className="px-6 py-4 text-center">
                       <button
                         onClick={handleMenuClick}
-                        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all duration-180"
                         title="Más opciones"
                       >
                         <MoreVertical className="h-4 w-4" />
@@ -334,8 +334,8 @@ export function OrdersListPage() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between mt-6">
+              <div className="text-sm text-gray-500">
                 Mostrando {((page - 1) * limit) + 1} - {Math.min(page * limit, filteredOrders.length)} de {filteredOrders.length} pedidos
               </div>
               <div className="flex items-center gap-2">
@@ -344,6 +344,7 @@ export function OrdersListPage() {
                   size="sm"
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}
+                  className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-180"
                 >
                   Anterior
                 </Button>
@@ -365,7 +366,11 @@ export function OrdersListPage() {
                         variant={page === pageNum ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
-                        className="w-10"
+                        className={`w-10 rounded-xl transition-all duration-180 ${
+                          page === pageNum
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
                       >
                         {pageNum}
                       </Button>
@@ -377,6 +382,7 @@ export function OrdersListPage() {
                   size="sm"
                   onClick={() => handlePageChange(page + 1)}
                   disabled={page === totalPages}
+                  className="rounded-xl border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-180"
                 >
                   Siguiente
                 </Button>
