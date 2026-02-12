@@ -6,6 +6,7 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { useApiClient } from '@/hooks/useApiClient';
+import { useCart } from '@/contexts/CartContext';
 import type { OrderDetail } from '@/types';
 import { Skeleton } from '@/components/ui';
 
@@ -18,6 +19,7 @@ export function PaymentSuccessPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
+  const { refreshCart } = useCart();
   useApiClient();
 
   useEffect(() => {
@@ -26,19 +28,54 @@ export function PaymentSuccessPage() {
       return;
     }
 
-    setIsLoading(true);
-    apiClient.orders.getMyOrderById(orderId)
-      .then((orderData) => {
+    let isMounted = true;
+
+    const loadOrder = async () => {
+      setIsLoading(true);
+      try {
+        const orderData = await apiClient.orders.getMyOrderById(orderId);
+        if (!isMounted) return;
         setOrder(orderData);
-      })
-      .catch((err) => {
+
+        // If paymentId is available and payment status is not "paid", verify the payment
+        if (paymentId && orderData.paymentStatus !== 'paid') {
+          try {
+            const result = await apiClient.payments.verifyPayment(paymentId);
+            if (!isMounted) return;
+
+            // Refresh cart to clear it if payment was successful
+            if (result.paymentStatus === 'paid') {
+              await refreshCart();
+            }
+
+            // Reload order to get updated status
+            const updatedOrder = await apiClient.orders.getMyOrderById(orderId);
+            if (isMounted) {
+              setOrder(updatedOrder);
+            }
+          } catch (err) {
+            console.error('Failed to verify payment:', err);
+            // Don't show error toast - payment might already be processed
+          }
+        }
+      } catch (err) {
         console.error('Failed to fetch order:', err);
-        toast.error('No se pudo cargar la información del pedido');
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [orderId, navigate, toast]);
+        if (isMounted) {
+          toast.error('No se pudo cargar la información del pedido');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orderId, paymentId, navigate, toast, refreshCart]);
 
   if (isLoading) {
     return (
