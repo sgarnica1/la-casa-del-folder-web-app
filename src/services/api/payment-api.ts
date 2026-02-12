@@ -7,6 +7,11 @@ export interface CreatePaymentPreferenceResponse {
   sandboxInitPoint: string;
 }
 
+export interface VerifyPaymentResponse {
+  orderId: string;
+  paymentStatus: 'pending' | 'paid' | 'failed';
+}
+
 export class PaymentApi extends BaseApiClient {
   async createPreference(orderId: string): Promise<CreatePaymentPreferenceResponse> {
     try {
@@ -17,6 +22,20 @@ export class PaymentApi extends BaseApiClient {
         body: JSON.stringify({ orderId }),
       });
       return handleResponse<CreatePaymentPreferenceResponse>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async verifyPayment(paymentId: string): Promise<VerifyPaymentResponse> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/payments/verify`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId }),
+      });
+      return handleResponse<VerifyPaymentResponse>(response);
     } catch (error) {
       return handleFetchError(error);
     }
