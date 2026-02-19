@@ -68,6 +68,20 @@ export function EditorPage() {
           apiClient.layouts.getLayout('calendar-template'),
         ]);
 
+        console.log('[EditorPage] Draft loaded:', {
+          draftId: draftData.id,
+          layoutItems: draftData.layoutItems.map(item => ({
+            id: item.id,
+            slotId: item.slotId,
+            imageId: item.imageId,
+            transform: item.transform ? {
+              x: item.transform.x,
+              y: item.transform.y,
+              scale: item.transform.scale,
+              rotation: item.transform.rotation,
+            } : null,
+          })),
+        });
         setDraft(draftData);
         setLayout(layoutData);
 
@@ -333,6 +347,83 @@ export function EditorPage() {
     }
   }, [draft, draftId, addImages]);
 
+  const handleTransformChange = useCallback(async (slotId: string, transform: LayoutItem['transform']) => {
+    if (!draft || !draftId) return;
+
+    console.log('[EditorPage] handleTransformChange called:', {
+      slotId,
+      transform: transform ? {
+        x: transform.x,
+        y: transform.y,
+        scale: transform.scale,
+        rotation: transform.rotation,
+      } : null,
+      existingDraftItems: draft.layoutItems.map(item => ({
+        id: item.id,
+        slotId: item.slotId,
+        imageId: item.imageId,
+        transform: item.transform ? {
+          x: item.transform.x,
+          y: item.transform.y,
+          scale: item.transform.scale,
+          rotation: item.transform.rotation,
+        } : null,
+      })),
+    });
+
+    const existingItem = draft.layoutItems.find((item) => item.slotId === slotId);
+    if (!existingItem) {
+      console.warn('[EditorPage] No existing item found for slotId:', slotId);
+      return;
+    }
+
+    const updatedItems: LayoutItem[] = draft.layoutItems.map((item) =>
+      item.id === existingItem.id ? { ...item, transform } : item
+    );
+
+    console.log('[EditorPage] Sending update to API:', {
+      draftId,
+      updatedItems: updatedItems.map(item => ({
+        id: item.id,
+        slotId: item.slotId,
+        imageId: item.imageId,
+        transform: item.transform ? {
+          x: item.transform.x,
+          y: item.transform.y,
+          scale: item.transform.scale,
+          rotation: item.transform.rotation,
+        } : null,
+      })),
+    });
+
+    try {
+      setIsSaving(true);
+      const updatedDraft = await apiClient.drafts.updateDraft(draftId, {
+        layoutItems: updatedItems,
+      });
+      console.log('[EditorPage] Draft updated successfully:', {
+        layoutItems: updatedDraft.layoutItems.map(item => ({
+          id: item.id,
+          slotId: item.slotId,
+          imageId: item.imageId,
+          transform: item.transform ? {
+            x: item.transform.x,
+            y: item.transform.y,
+            scale: item.transform.scale,
+            rotation: item.transform.rotation,
+          } : null,
+        })),
+      });
+      setDraft(updatedDraft);
+      toastRef.current.success('Transformación guardada');
+    } catch (err) {
+      console.error('[EditorPage] Error updating draft:', err);
+      toastRef.current.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [draft, draftId]);
+
   const [titleValue, setTitleValue] = useState<string>('Agregar título');
   const [isSaved, setIsSaved] = useState(false);
   const [isEditingMainTitle, setIsEditingMainTitle] = useState(false);
@@ -504,9 +595,6 @@ export function EditorPage() {
                 })}
               </p>
             )}
-            <p className="text-muted-foreground mt-10 text-sm">
-              Haz clic en una foto para cambiarla.
-            </p>
             {!hasAllImages() && !isLoadingImages && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-500 rounded-lg">
                 <p className="text-sm text-blue-500">
@@ -523,6 +611,7 @@ export function EditorPage() {
             title={titleValue}
             onSlotClick={handleSlotClick}
             onTitleChange={handleTitleChange}
+            onTransformChange={handleTransformChange}
             uploadingSlots={uploadingSlots}
           />
           <input

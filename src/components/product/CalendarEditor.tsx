@@ -1,5 +1,10 @@
-import { Pencil } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { MoreVertical, Edit } from 'lucide-react';
+import { Button } from '@/components/ui';
+import { Dialog, DialogContent } from '@/components/ui';
+import { PhotoEditor } from '@/components/photo-editor';
 import type { Layout, LayoutItem } from '@/types';
+import type { ImageTransform as PhotoEditorTransform } from '@/types/photo-editor';
 
 interface UploadedImage {
   id: string;
@@ -14,6 +19,7 @@ interface CalendarEditorProps {
   title?: string;
   onSlotClick?: (slotId: string) => void;
   onTitleChange?: (title: string) => void;
+  onTransformChange?: (slotId: string, transform: LayoutItem['transform']) => void;
   isLocked?: boolean;
   layoutMode?: 'vertical' | 'grid';
   uploadingSlots?: Map<string, { previewUrl: string }>;
@@ -116,13 +122,40 @@ export function CalendarEditor({
   layoutItems,
   images,
   year = 2026,
-  title = 'Título del calendario',
+  title: _title,
   onSlotClick,
-  onTitleChange,
+  onTitleChange: _onTitleChange,
+  onTransformChange,
   isLocked = false,
   layoutMode = 'vertical',
   uploadingSlots = new Map(),
 }: CalendarEditorProps) {
+  // Title and onTitleChange are kept in the API for compatibility but not displayed on cover
+  void _title;
+  void _onTitleChange;
+
+  console.log('[CalendarEditor] Props received:', {
+    layoutItemsCount: layoutItems.length,
+    layoutItems: layoutItems.map(item => ({
+      id: item.id,
+      slotId: item.slotId,
+      imageId: item.imageId,
+      transform: item.transform ? {
+        x: item.transform.x,
+        y: item.transform.y,
+        scale: item.transform.scale,
+        rotation: item.transform.rotation,
+      } : null,
+    })),
+    imagesCount: images.length,
+  });
+
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [menuOpenSlotId, setMenuOpenSlotId] = useState<string | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<Map<string, { width: number; height: number }>>(new Map());
+  const [containerSizes, setContainerSizes] = useState<Map<string, { width: number; height: number }>>(new Map());
+  const menuRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const containerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const sortedSlots = sortSlots(layout.slots);
   const coverSlot = sortedSlots.find(
     (s) => s.name.toLowerCase().includes('portada') || s.name.toLowerCase().includes('cover')
@@ -158,23 +191,306 @@ export function CalendarEditor({
     }
   };
 
+  const loadImageDimensions = (imageUrl: string): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
+  };
+
+  const handleEditClick = async (slotId: string) => {
+    const image = getImageForSlot(slotId);
+    if (!image) return;
+
+    setMenuOpenSlotId(null);
+
+    const cached = imageDimensions.get(image.id);
+    if (cached) {
+      setEditingSlotId(slotId);
+      return;
+    }
+
+    try {
+      const dimensions = await loadImageDimensions(image.url);
+      setImageDimensions((prev) => {
+        const updated = new Map(prev);
+        updated.set(image.id, dimensions);
+        return updated;
+      });
+      setEditingSlotId(slotId);
+    } catch (error) {
+      console.error('Failed to load image dimensions:', error);
+    }
+  };
+
+  const handleMenuToggle = (slotId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setMenuOpenSlotId((prev) => (prev === slotId ? null : slotId));
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuOpenSlotId) {
+        const menuElement = menuRefs.current.get(menuOpenSlotId);
+        if (menuElement && !menuElement.contains(event.target as Node)) {
+          setMenuOpenSlotId(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpenSlotId]);
+
+  // Proactively load image dimensions for all images with transforms
+  useEffect(() => {
+    const loadAllImageDimensions = async () => {
+      // Check current state to see what we need to load
+      setImageDimensions((prev) => {
+        const imagesToLoad: Array<{ id: string; url: string }> = [];
+
+        layoutItems.forEach((item) => {
+          if (item.imageId && item.transform) {
+            const image = images.find((img) => img.id === item.imageId);
+            if (image && !prev.has(image.id)) {
+              imagesToLoad.push({ id: image.id, url: image.url });
+            }
+          }
+        });
+
+        if (imagesToLoad.length > 0) {
+          // Load all dimensions in parallel
+          Promise.all(
+            imagesToLoad.map(async ({ id, url }) => {
+              try {
+                const dimensions = await loadImageDimensions(url);
+                return { id, dimensions };
+              } catch (error) {
+                console.error(`Failed to load dimensions for image ${id}:`, error);
+                return null;
+              }
+            })
+          ).then((results) => {
+            setImageDimensions((current) => {
+              const updated = new Map(current);
+              let hasChanges = false;
+              results.forEach((result) => {
+                if (result && !updated.has(result.id)) {
+                  updated.set(result.id, result.dimensions);
+                  hasChanges = true;
+                }
+              });
+              return hasChanges ? updated : current;
+            });
+          });
+        }
+
+        return prev; // Return unchanged immediately
+      });
+    };
+
+    loadAllImageDimensions();
+  }, [layoutItems, images]);
+
+  useEffect(() => {
+    const updateContainerSizes = () => {
+      setContainerSizes((prev) => {
+        const newSizes = new Map<string, { width: number; height: number }>();
+        let hasChanges = false;
+
+        containerRefs.current.forEach((el, slotId) => {
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              const newSize = { width: rect.width, height: rect.height };
+              const oldSize = prev.get(slotId);
+
+              // Only update if size actually changed
+              if (!oldSize || oldSize.width !== newSize.width || oldSize.height !== newSize.height) {
+                newSizes.set(slotId, newSize);
+                hasChanges = true;
+              } else {
+                newSizes.set(slotId, oldSize);
+              }
+            }
+          }
+        });
+
+        // Only update state if there are actual changes
+        return hasChanges ? newSizes : prev;
+      });
+    };
+
+    // Initial update after a short delay to ensure DOM is ready
+    const timeoutId = setTimeout(updateContainerSizes, 0);
+
+    window.addEventListener('resize', updateContainerSizes);
+
+    const resizeObserver = new ResizeObserver(() => {
+      // Use requestAnimationFrame to batch updates
+      requestAnimationFrame(updateContainerSizes);
+    });
+
+    // Observe all current containers
+    containerRefs.current.forEach((el) => {
+      if (el) resizeObserver.observe(el);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', updateContainerSizes);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  const handleSaveTransform = (slotId: string, transform: PhotoEditorTransform) => {
+    console.log('[CalendarEditor] handleSaveTransform called:', {
+      slotId,
+      photoEditorTransform: transform,
+    });
+
+    const newTransform: LayoutItem['transform'] = {
+      x: transform.offsetX,
+      y: transform.offsetY,
+      scale: transform.scale,
+      rotation: transform.rotation,
+    };
+
+    console.log('[CalendarEditor] Saving transform:', {
+      slotId,
+      newTransform,
+    });
+
+    onTransformChange?.(slotId, newTransform);
+    setEditingSlotId(null);
+  };
+
+  const convertTransform = (oldTransform: LayoutItem['transform'] | undefined, originalWidth: number, originalHeight: number, cropWidth: number, cropHeight: number): Partial<PhotoEditorTransform> => {
+    // Calculate what the minimum scale should be to cover the crop
+    const imgAspect = originalWidth / originalHeight;
+    const cropAspect = cropWidth / cropHeight;
+    let minScaleToCoverCrop = 1;
+    if (imgAspect > cropAspect) {
+      minScaleToCoverCrop = cropHeight / originalHeight;
+    } else {
+      minScaleToCoverCrop = cropWidth / originalWidth;
+    }
+
+    console.log('[CalendarEditor] convertTransform called:', {
+      oldTransform,
+      originalWidth,
+      originalHeight,
+      cropWidth,
+      cropHeight,
+      calculatedMinScaleToCoverCrop: minScaleToCoverCrop,
+    });
+
+    if (!oldTransform) {
+      const result = {
+        scale: minScaleToCoverCrop,
+        rotation: 0,
+        offsetX: 0,
+        offsetY: 0,
+      };
+      console.log('[CalendarEditor] convertTransform: No oldTransform, returning default (minScale):', result);
+      return result;
+    }
+
+    // The saved transform.scale is relative to minScaleToCoverCrop
+    // So if scale = 0.078125 and minScaleToCoverCrop = 0.078125, that means scale = 1.0 relative
+    // But we need to check: is the saved scale already the absolute scale, or relative?
+    // Looking at the logs, saved scale is 0.078125 which equals minScaleToCoverCrop
+    // This suggests the saved scale IS the absolute scale, not relative
+
+    // Return the saved transform values directly
+    // The scale should be the absolute scale (same as what PhotoEditor uses internally)
+    const result = {
+      scale: oldTransform.scale ?? minScaleToCoverCrop,
+      rotation: oldTransform.rotation ?? 0,
+      offsetX: oldTransform.x ?? 0,
+      offsetY: oldTransform.y ?? 0,
+    };
+    console.log('[CalendarEditor] convertTransform: Returning converted transform:', {
+      ...result,
+      savedScale: oldTransform.scale,
+      minScaleToCoverCrop,
+      isScaleEqualToMin: oldTransform.scale === minScaleToCoverCrop,
+    });
+    return result;
+  };
+
   const allSlots = layoutMode === 'grid' && coverSlot
     ? [coverSlot, ...monthSlots]
     : monthSlots;
 
   const renderSlot = (slot: { id: string; name: string }) => {
+    const fullSlot = layout.slots.find((s) => s.id === slot.id);
+    if (!fullSlot) return null;
+
     const isCover = slot.name.toLowerCase().includes('portada') || slot.name.toLowerCase().includes('cover');
     const monthNum = getMonthNumber(slot.name);
     const monthName = getMonthName(slot.name);
     const image = getImageForSlot(slot.id);
+    const layoutItem = layoutItems.find((li) => li.slotId === slot.id);
+    const transform = layoutItem?.transform;
     const calendarDays = monthNum ? generateCalendarDays(year, monthNum) : [];
 
     return (
-      <div key={slot.id} className={layoutMode === 'grid' ? 'h-full flex' : 'flex justify-center mb-8'}>
+      <div key={slot.id} className={layoutMode === 'grid' ? 'h-full flex flex-col' : 'flex flex-col items-center mb-8'}>
+        <div className={`w-full ${layoutMode === 'grid' ? '' : 'max-w-2xl'} mb-3 flex items-center justify-between`}>
+          <div className="text-md font-semibold text-gray-600">
+            {isCover ? 'Portada' : `${monthName} ${year}`}
+          </div>
+          {image && !isLocked && (
+            <div className="relative" ref={(el) => {
+              if (el) menuRefs.current.set(slot.id, el);
+            }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => handleMenuToggle(slot.id, e)}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+              {menuOpenSlotId === slot.id && (
+                <div className="absolute right-0 top-10 bg-white rounded-md shadow-lg border py-1 min-w-[120px] z-20">
+                  <button
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditClick(slot.id);
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                    Editar
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 lg:p-6 border border-gray-200/60`}>
           <div
-            className={`relative w-full aspect-[4/3] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 rounded-xl ${isLocked ? 'cursor-default' : 'cursor-pointer transition-all duration-200'}`}
-            onClick={() => handleSlotClick(slot.id)}
+            ref={(el) => {
+              if (el) {
+                containerRefs.current.set(slot.id, el);
+              } else {
+                containerRefs.current.delete(slot.id);
+              }
+            }}
+            className={`relative w-full aspect-[3/2] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 rounded-xl ${isLocked ? 'cursor-default' : 'cursor-pointer transition-all duration-200'}`}
+            onClick={() => {
+              if (image && !isLocked) {
+                handleEditClick(slot.id);
+              } else if (!isLocked) {
+                handleSlotClick(slot.id);
+              }
+            }}
             style={!isLocked ? {
               transition: 'transform 200ms ease-out',
             } : {}}
@@ -201,11 +517,178 @@ export function CalendarEditor({
                 </div>
               </>
             ) : image ? (
-              <img
-                src={image.url}
-                alt={monthName}
-                className="w-full h-full object-cover"
-              />
+              (() => {
+                const dims = imageDimensions.get(image.id);
+                if (!dims) {
+                  return (
+                    <img
+                      key={image.id}
+                      src={image.url}
+                      alt={monthName}
+                      className="w-full h-full object-cover"
+                      onLoad={() => {
+                        if (!imageDimensions.has(image.id)) {
+                          loadImageDimensions(image.url);
+                        }
+                      }}
+                    />
+                  );
+                }
+
+                if (!transform) {
+                  console.log('[CalendarEditor] Rendering image without transform:', {
+                    slotId: slot.id,
+                    imageId: image.id,
+                    monthName,
+                  });
+                  return (
+                    <img
+                      key={image.id}
+                      src={image.url}
+                      alt={monthName}
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                }
+
+                console.log('[CalendarEditor] Rendering image with transform:', {
+                  slotId: slot.id,
+                  imageId: image.id,
+                  monthName,
+                  transform: {
+                    x: transform.x,
+                    y: transform.y,
+                    scale: transform.scale,
+                    rotation: transform.rotation,
+                  },
+                  imageDimensions: dims,
+                  slotBounds: fullSlot.bounds,
+                  containerSize: containerSizes.get(slot.id),
+                  layoutItem: layoutItem ? {
+                    id: layoutItem.id,
+                    slotId: layoutItem.slotId,
+                    imageId: layoutItem.imageId,
+                    transform: layoutItem.transform,
+                  } : null,
+                });
+
+                // Apply transform similar to EditorCanvas
+                // The transform.scale is relative to the minimum scale needed to cover the crop area
+                const rotationRad = ((transform.rotation || 0) * Math.PI) / 180;
+                const cos = Math.abs(Math.cos(rotationRad));
+                const sin = Math.abs(Math.sin(rotationRad));
+                const rotatedWidth = dims.width * cos + dims.height * sin;
+                const rotatedHeight = dims.width * sin + dims.height * cos;
+
+                // Get the actual display container size
+                const containerSize = containerSizes.get(slot.id);
+                if (!containerSize || containerSize.width === 0 || containerSize.height === 0) {
+                  // Container size not available yet, render without transform
+                  console.log('[CalendarEditor] Container size not available, rendering without transform:', {
+                    slotId: slot.id,
+                    containerSize,
+                  });
+                  return (
+                    <img
+                      key={image.id}
+                      src={image.url}
+                      alt={monthName}
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                }
+
+                const displayWidth = containerSize.width;
+                const displayHeight = containerSize.height;
+
+                // Scale factor from crop to display
+                const cropToDisplayScaleX = displayWidth / fullSlot.bounds.width;
+                const cropToDisplayScaleY = displayHeight / fullSlot.bounds.height;
+                const cropToDisplayScale = Math.min(cropToDisplayScaleX, cropToDisplayScaleY);
+
+                const originalAspect = dims.width / dims.height;
+                const displayAspect = displayWidth / displayHeight;
+
+                // Calculate base image size to cover the display frame (at scale=1, this is the size that covers)
+                let baseImageWidth: number;
+                let baseImageHeight: number;
+                if (originalAspect > displayAspect) {
+                  // Image is wider than frame - make height match frame height
+                  baseImageHeight = displayHeight;
+                  baseImageWidth = displayHeight * originalAspect;
+                } else {
+                  // Image is taller than frame - make width match frame width
+                  baseImageWidth = displayWidth;
+                  baseImageHeight = displayWidth / originalAspect;
+                }
+
+                // Calculate minScaleToCoverCrop (the scale needed to cover the crop area)
+                // This is calculated relative to the crop dimensions (100x100)
+                const rotatedAspect = rotatedWidth / rotatedHeight;
+                const cropAspect = fullSlot.bounds.width / fullSlot.bounds.height;
+                let minScaleToCoverCrop: number;
+                if (rotatedAspect > cropAspect) {
+                  minScaleToCoverCrop = fullSlot.bounds.height / rotatedHeight;
+                } else {
+                  minScaleToCoverCrop = fullSlot.bounds.width / rotatedWidth;
+                }
+
+                // The saved transform.scale is relative to minScaleToCoverCrop (calculated for crop dimensions)
+                // normalizedScale tells us how much bigger than minimum the image should be
+                const normalizedScale = (transform.scale || minScaleToCoverCrop) / minScaleToCoverCrop;
+
+                // Apply the normalized scale to the base size (which is for display)
+                const scaledWidth = baseImageWidth * normalizedScale;
+                const scaledHeight = baseImageHeight * normalizedScale;
+
+                // Scale the offset coordinates from crop space to display space
+                const scaleFactor = cropToDisplayScale;
+
+                const imageStyle: React.CSSProperties = {
+                  width: `${scaledWidth}px`,
+                  height: `${scaledHeight}px`,
+                  transform: `translate(calc(-50% + ${(transform.x || 0) * scaleFactor}px), calc(-50% + ${(transform.y || 0) * scaleFactor}px)) rotate(${transform.rotation || 0}deg)`,
+                  transformOrigin: 'center center',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                };
+
+                console.log('[CalendarEditor] Calculated image style:', {
+                  slotId: slot.id,
+                  scaledWidth,
+                  scaledHeight,
+                  normalizedScale,
+                  minScaleToCoverCrop,
+                  transformScale: transform.scale,
+                  baseImageWidth,
+                  baseImageHeight,
+                  rotatedWidth,
+                  rotatedHeight,
+                  originalAspect,
+                  displayAspect,
+                  rotatedAspect,
+                  cropAspect,
+                  displayWidth,
+                  displayHeight,
+                  cropToDisplayScale,
+                  imageStyle: {
+                    width: imageStyle.width,
+                    height: imageStyle.height,
+                    transform: imageStyle.transform,
+                  },
+                });
+
+                return (
+                  <img
+                    key={image.id}
+                    src={image.url}
+                    alt={monthName}
+                    style={imageStyle}
+                    className="max-w-none"
+                  />
+                );
+              })()
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400">
                 <span className="text-sm">Agregar foto para {monthName}</span>
@@ -214,55 +697,38 @@ export function CalendarEditor({
           </div>
           <div className={`flex-1 flex flex-col ${isCover ? 'justify-center' : ''}`}>
             {isCover ? (
-              <div className="text-center space-y-4">
-                {!isLocked && onTitleChange ? (
-                  <div className="relative group inline-block">
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        if (newValue.length <= 60) {
-                          onTitleChange(newValue);
-                        }
-                      }}
-                      maxLength={60}
-                      className="lg:text-2xl text-xl font text-gray-800 bg-transparent border border-transparent hover:border-gray-300 focus:border-gray-400 outline-none text-center w-full focus:ring-2 focus:ring-gray-300 rounded px-2 py-1 transition-colors break-all"
-                      placeholder=""
-                    />
-                    <Pencil className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
-                  </div>
-                ) : (
-                  <div className="lg:text-2xl text-xl  text-gray-800 break-all">{title}</div>
-                )}
+              <div className="text-center">
                 <div className="lg:text-4xl text-2xl font-bold text-gray-900">{year}</div>
               </div>
             ) : (
               <>
                 <div className="mb-5">
-                  <div className="text-2xl font-semibold text-gray-900">
-                    {monthName} {year}
+                  <div className="text-2xl font-semibold text-gray-900 flex justify-between">
+                    <p className='text-4xl font-bold'>{monthName}</p>
+                    <p className='text-gray-400'>{year}</p>
                   </div>
                 </div>
                 {monthNum && calendarDays.length > 0 ? (
-                  <div className="bg-gray-50 rounded-xl p-5 border border-gray-200/60">
-                    <div className="grid grid-cols-7 gap-2">
-                      {DAY_NAMES.map((day, index) => (
-                        <div key={`day-${index}`} className="text-center text-xs font-medium text-gray-500 py-2">
-                          {day}
-                        </div>
-                      ))}
-                      {calendarDays.map((day, index) => (
-                        <div
-                          key={`calendar-day-${index}`}
-                          className={`text-center py-2 text-sm transition-colors duration-150 ${day === null
-                            ? 'text-transparent'
-                            : 'text-gray-700 hover:bg-gray-200/60 rounded-lg cursor-default'
-                            }`}
-                        >
-                          {day}
-                        </div>
-                      ))}
+                  <div className="mb-5">
+                    <div className="bg-gray-50 rounded-xl p-5 border border-gray-200/60">
+                      <div className="grid grid-cols-7 gap-2">
+                        {DAY_NAMES.map((day, index) => (
+                          <div key={`day-${index}`} className="text-center text-xs font-medium text-gray-500 py-2">
+                            {day}
+                          </div>
+                        ))}
+                        {calendarDays.map((day, index) => (
+                          <div
+                            key={`calendar-day-${index}`}
+                            className={`text-center py-2 text-sm transition-colors duration-150 ${day === null
+                              ? 'text-transparent'
+                              : 'text-gray-700 hover:bg-gray-200/60 rounded-lg cursor-default'
+                              }`}
+                          >
+                            {day}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -276,18 +742,57 @@ export function CalendarEditor({
     );
   };
 
+  const editingSlot = editingSlotId ? layout.slots.find((s) => s.id === editingSlotId) : null;
+  const editingImage = editingSlotId ? getImageForSlot(editingSlotId) : null;
+  const editingLayoutItem = editingSlotId ? layoutItems.find((item) => item.slotId === editingSlotId) : null;
+  const editingDimensions = editingImage ? imageDimensions.get(editingImage.id) : null;
+
   return (
-    <div className="w-full space-y-8">
-      {layoutMode === 'grid' ? (
-        <div className="grid grid-cols-2 gap-6 items-stretch">
-          {allSlots.map(renderSlot)}
-        </div>
-      ) : (
-        <>
-          {coverSlot && renderSlot(coverSlot)}
-          {monthSlots.map(renderSlot)}
-        </>
+    <>
+      <div className="w-full space-y-8">
+        {layoutMode === 'grid' ? (
+          <div className="grid grid-cols-2 gap-6 items-stretch">
+            {allSlots.map(renderSlot)}
+          </div>
+        ) : (
+          <>
+            {coverSlot && renderSlot(coverSlot)}
+            {monthSlots.map(renderSlot)}
+          </>
+        )}
+      </div>
+
+      {editingSlot && editingImage && editingDimensions && (
+        <Dialog open={!!editingSlotId} onOpenChange={(open) => !open && setEditingSlotId(null)} closeOnOutsideClick={false}>
+          <DialogContent className="max-w-[95vw] w-full max-h-[90vh] p-0 flex flex-col !rounded-2xl">
+            <PhotoEditor
+              imageId={editingImage.id}
+              imageUrl={editingImage.url}
+              originalWidth={editingDimensions.width}
+              originalHeight={editingDimensions.height}
+              cropWidth={editingSlot.bounds.width}
+              cropHeight={editingSlot.bounds.height}
+              aspectRatio={3 / 2}
+              initialTransform={(() => {
+                const converted = convertTransform(
+                  editingLayoutItem?.transform,
+                  editingDimensions.width,
+                  editingDimensions.height,
+                  editingSlot.bounds.width,
+                  editingSlot.bounds.height
+                );
+                return converted;
+              })()}
+              onSave={(transform) => handleSaveTransform(editingSlotId!, transform)}
+              onCancel={() => setEditingSlotId(null)}
+              onReplace={() => {
+                setEditingSlotId(null);
+                onSlotClick?.(editingSlotId!);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 }

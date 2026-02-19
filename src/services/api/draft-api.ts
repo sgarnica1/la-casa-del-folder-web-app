@@ -9,7 +9,66 @@ export class DraftApi extends BaseApiClient {
       const response = await fetch(`${this.baseUrl}/drafts/${draftId}`, {
         headers,
       });
-      return handleResponse<Draft>(response);
+      const data = await handleResponse<{
+        id: string;
+        status: string;
+        productId: string;
+        templateId: string;
+        title: string | null;
+        layoutItems: Array<{ 
+          id: string; 
+          slotId: string; 
+          imageId: string | null;
+          transform?: { x: number; y: number; scale: number; rotation: number } | null;
+        }>;
+        createdAt: string;
+        updatedAt: string;
+      }>(response);
+      
+      const mappedDraft = {
+        id: data.id,
+        status: data.status as 'draft' | 'locked' | 'ordered',
+        productId: data.productId,
+        templateId: data.templateId,
+        title: data.title || undefined,
+        layoutItems: data.layoutItems.map(item => ({
+          id: item.id,
+          slotId: item.slotId,
+          imageId: item.imageId || undefined,
+          transform: item.transform || undefined,
+        })),
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      };
+
+      console.log('[DraftApi] getDraft response mapped:', {
+        draftId,
+        rawData: {
+          ...data,
+          layoutItems: data.layoutItems.map(item => ({
+            id: item.id,
+            slotId: item.slotId,
+            imageId: item.imageId,
+            transform: item.transform,
+          })),
+        },
+        mappedDraft: {
+          ...mappedDraft,
+          layoutItems: mappedDraft.layoutItems.map(item => ({
+            id: item.id,
+            slotId: item.slotId,
+            imageId: item.imageId,
+            transform: item.transform ? {
+              x: item.transform.x,
+              y: item.transform.y,
+              scale: item.transform.scale,
+              rotation: item.transform.rotation,
+            } : null,
+          })),
+        },
+      });
+
+      return mappedDraft;
     } catch (error) {
       return handleFetchError(error);
     }
@@ -88,13 +147,18 @@ export class DraftApi extends BaseApiClient {
         id: string;
         title: string | undefined;
         state: string;
-        layoutItems: Array<{ id: string; slotId: string; imageId: string | null }>;
+        layoutItems: Array<{ 
+          id: string; 
+          slotId: string; 
+          imageId: string | null;
+          transform?: { x: number; y: number; scale: number; rotation: number } | null;
+        }>;
         imageIds: string[];
         createdAt: string;
         updatedAt: string;
       }>(response);
 
-      return {
+      const mappedDraft = {
         id: data.id,
         status: data.state === 'editing' ? 'draft' : (data.state as 'locked' | 'ordered'),
         productId: '',
@@ -104,10 +168,40 @@ export class DraftApi extends BaseApiClient {
           id: item.id,
           slotId: item.slotId,
           imageId: item.imageId || undefined,
+          transform: item.transform || undefined,
         })),
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       };
+
+      console.log('[DraftApi] getMyDraftById response mapped:', {
+        draftId,
+        rawData: {
+          ...data,
+          layoutItems: data.layoutItems.map(item => ({
+            id: item.id,
+            slotId: item.slotId,
+            imageId: item.imageId,
+            transform: item.transform,
+          })),
+        },
+        mappedDraft: {
+          ...mappedDraft,
+          layoutItems: mappedDraft.layoutItems.map(item => ({
+            id: item.id,
+            slotId: item.slotId,
+            imageId: item.imageId,
+            transform: item.transform ? {
+              x: item.transform.x,
+              y: item.transform.y,
+              scale: item.transform.scale,
+              rotation: item.transform.rotation,
+            } : null,
+          })),
+        },
+      });
+
+      return mappedDraft;
     } catch (error) {
       return handleFetchError(error);
     }

@@ -5,9 +5,10 @@ interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
+  closeOnOutsideClick?: boolean;
 }
 
-const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) => {
+const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children, closeOnOutsideClick = true }) => {
   React.useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -25,13 +26,13 @@ const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) => {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && closeOnOutsideClick) {
           onOpenChange(false);
         }
       }}
     >
       <div className="fixed inset-0 bg-black/50" />
-      <div className="relative z-50 w-full max-w-lg mx-4">{children}</div>
+      <div className="relative z-50 w-full max-w-6xl mx-4">{children}</div>
     </div>
   );
 };
