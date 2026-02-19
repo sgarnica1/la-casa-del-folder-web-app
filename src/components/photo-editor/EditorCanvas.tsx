@@ -199,10 +199,10 @@ export function EditorCanvas({
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    const factor = e.deltaY > 0 ? 0.95 : 1.05;
     const newScale = Math.max(
       minScale.current,
-      Math.min(maxScale, transform.scale + delta)
+      Math.min(maxScale, transform.scale * factor)
     );
 
     if (newScale !== transform.scale) {

@@ -119,7 +119,7 @@ export function PhotoEditor({
 
   const handleZoomIn = useCallback(() => {
     setTransform((prev) => {
-      const newScale = Math.min(3, prev.scale + 0.1);
+      const newScale = Math.min(3, prev.scale * 1.1);
       return { ...prev, scale: newScale };
     });
   }, []);
@@ -134,7 +134,7 @@ export function PhotoEditor({
       } else {
         minScale = cropWidth / originalWidth;
       }
-      const newScale = Math.max(minScale, prev.scale - 0.1);
+      const newScale = Math.max(minScale, prev.scale * 0.9);
       return { ...prev, scale: newScale };
     });
   }, [originalWidth, originalHeight, cropWidth, cropHeight]);
