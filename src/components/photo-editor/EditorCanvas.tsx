@@ -95,35 +95,28 @@ export function EditorCanvas({
     const baseRotatedHeight = transform.originalWidth * sin + transform.originalHeight * cos;
     const rotatedAspect = baseRotatedWidth / baseRotatedHeight;
 
+    // Effective 3:2 frame — must match rendering and handleFill/handleFit
+    const targetAR = 3 / 2;
+    const cropAR = cropWidth / cropHeight;
+    const effectiveCropW = cropAR > targetAR ? cropWidth : cropHeight * targetAR;
+    const effectiveCropH = effectiveCropW / targetAR;
+    const frameAspect = effectiveCropW / effectiveCropH; // always 1.5
+
+    // minScaleToCover uses effectiveCropW/H — same as rendering
     let minScaleToCover: number;
-    if (rotatedAspect > cropWidth / cropHeight) {
-      minScaleToCover = cropHeight / baseRotatedHeight;
+    if (rotatedAspect > frameAspect) {
+      minScaleToCover = effectiveCropH / baseRotatedHeight;
     } else {
-      minScaleToCover = cropWidth / baseRotatedWidth;
+      minScaleToCover = effectiveCropW / baseRotatedWidth;
     }
 
     if (scale <= minScaleToCover * 1.0001) {
       return { x: 0, y: 0 };
     }
 
-    // Use consistent effective 3:2 frame dimensions (not dependent on containerSize)
-    // This ensures constraints are the same on mobile and desktop, matching CalendarEditor
-    const targetAR = 3 / 2;
-    const cropAR = cropWidth / cropHeight;
-    let effectiveCropW: number, effectiveCropH: number;
-    if (cropAR > targetAR) {
-      effectiveCropW = cropWidth;
-      effectiveCropH = cropWidth / targetAR;
-    } else {
-      effectiveCropH = cropHeight;
-      effectiveCropW = cropHeight * targetAR;
-    }
-
     const normalizedScale = scale / minScaleToCover;
 
     const originalAspect = transform.originalWidth / transform.originalHeight;
-    const frameAspect = effectiveCropW / effectiveCropH;
-
     let baseImageW: number, baseImageH: number;
     if (originalAspect > frameAspect) {
       baseImageH = effectiveCropH;
@@ -136,7 +129,6 @@ export function EditorCanvas({
     const scaledW = baseImageW * normalizedScale;
     const scaledH = baseImageH * normalizedScale;
 
-    // Max offset in crop units (consistent across all screen sizes)
     const maxX = (scaledW - effectiveCropW) / 2;
     const maxY = (scaledH - effectiveCropH) / 2;
 
