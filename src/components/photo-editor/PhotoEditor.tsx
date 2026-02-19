@@ -140,7 +140,6 @@ export function PhotoEditor({
   }, [originalWidth, originalHeight, cropWidth, cropHeight]);
 
   const handleFill = useCallback(() => {
-    // Fill: bg-cover - scale to cover entire frame, may crop image
     setTransform((prev) => {
       const rotationRad = (prev.rotation * Math.PI) / 180;
       const cos = Math.abs(Math.cos(rotationRad));
@@ -149,13 +148,19 @@ export function PhotoEditor({
       const rotatedWidth = originalWidth * cos + originalHeight * sin;
       const rotatedHeight = originalWidth * sin + originalHeight * cos;
 
+      // Use effective 3:2 frame — same as constrainPosition and EditorCanvas rendering
+      const targetAR = 3 / 2;
+      const cropAR = cropWidth / cropHeight;
+      const effectiveCropW = cropAR > targetAR ? cropWidth : cropHeight * targetAR;
+      const effectiveCropH = effectiveCropW / targetAR;
+
       const imgAspect = rotatedWidth / rotatedHeight;
-      const cropAspect = cropWidth / cropHeight;
+      const frameAspect = effectiveCropW / effectiveCropH;
       let minScale = 1;
-      if (imgAspect > cropAspect) {
-        minScale = cropHeight / rotatedHeight;
+      if (imgAspect > frameAspect) {
+        minScale = effectiveCropH / rotatedHeight;
       } else {
-        minScale = cropWidth / rotatedWidth;
+        minScale = effectiveCropW / rotatedWidth;
       }
       return {
         ...prev,
@@ -175,7 +180,7 @@ export function PhotoEditor({
       const rotatedWidth = originalWidth * cos + originalHeight * sin;
       const rotatedHeight = originalWidth * sin + originalHeight * cos;
 
-      // Fit within the effective 3:2 display frame, not the raw crop dimensions
+      // Fit within the effective 3:2 display frame (matching what user sees in editor)
       const targetAR = 3 / 2;
       const cropAR = cropWidth / cropHeight;
       let effectiveCropW: number, effectiveCropH: number;

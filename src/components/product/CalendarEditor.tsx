@@ -335,14 +335,31 @@ export function CalendarEditor({
   };
 
   const convertTransform = (oldTransform: LayoutItem['transform'] | undefined, originalWidth: number, originalHeight: number, cropWidth: number, cropHeight: number): Partial<PhotoEditorTransform> => {
-    // Calculate what the minimum scale should be to cover the crop
-    const imgAspect = originalWidth / originalHeight;
-    const cropAspect = cropWidth / cropHeight;
-    let minScaleToCoverCrop = 1;
-    if (imgAspect > cropAspect) {
-      minScaleToCoverCrop = cropHeight / originalHeight;
+    // Calculate minScaleToCoverCrop using effective 3:2 dimensions (matching PhotoEditor)
+    const rotationRad = ((oldTransform?.rotation || 0) * Math.PI) / 180;
+    const cos = Math.abs(Math.cos(rotationRad));
+    const sin = Math.abs(Math.sin(rotationRad));
+    const rotatedWidth = originalWidth * cos + originalHeight * sin;
+    const rotatedHeight = originalWidth * sin + originalHeight * cos;
+
+    const targetAR = 3 / 2;
+    const cropAR = cropWidth / cropHeight;
+    let effectiveCropW: number, effectiveCropH: number;
+    if (cropAR > targetAR) {
+      effectiveCropW = cropWidth;
+      effectiveCropH = cropWidth / targetAR;
     } else {
-      minScaleToCoverCrop = cropWidth / originalWidth;
+      effectiveCropH = cropHeight;
+      effectiveCropW = cropHeight * targetAR;
+    }
+
+    const rotatedAspect = rotatedWidth / rotatedHeight;
+    const effectiveAspect = effectiveCropW / effectiveCropH;
+    let minScaleToCoverCrop = 1;
+    if (rotatedAspect > effectiveAspect) {
+      minScaleToCoverCrop = effectiveCropH / rotatedHeight;
+    } else {
+      minScaleToCoverCrop = effectiveCropW / rotatedWidth;
     }
 
     if (!oldTransform) {
@@ -443,16 +460,6 @@ export function CalendarEditor({
             style={!isLocked ? {
               transition: 'transform 200ms ease-out',
             } : {}}
-            onMouseEnter={(e) => {
-              if (!isLocked) {
-                e.currentTarget.style.transform = 'scale(1.02)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isLocked) {
-                e.currentTarget.style.transform = 'scale(1)';
-              }
-            }}
           >
             {uploadingSlots.has(slot.id) ? (
               <>
@@ -541,15 +548,26 @@ export function CalendarEditor({
                   baseImageHeight = displayWidth / originalAspect;
                 }
 
-                // Calculate minScaleToCoverCrop (the scale needed to cover the crop area)
-                // This is calculated relative to the crop dimensions (100x100)
-                const rotatedAspect = rotatedWidth / rotatedHeight;
-                const cropAspect = fullSlot.bounds.width / fullSlot.bounds.height;
-                let minScaleToCoverCrop: number;
-                if (rotatedAspect > cropAspect) {
-                  minScaleToCoverCrop = fullSlot.bounds.height / rotatedHeight;
+                // Calculate minScaleToCoverCrop using effective 3:2 dimensions (matching PhotoEditor)
+                // Both editors use 3:2 display frames, so we need consistent calculations
+                const targetAR = 3 / 2;
+                const cropAR = fullSlot.bounds.width / fullSlot.bounds.height;
+                let effectiveCropW: number, effectiveCropH: number;
+                if (cropAR > targetAR) {
+                  effectiveCropW = fullSlot.bounds.width;
+                  effectiveCropH = fullSlot.bounds.width / targetAR;
                 } else {
-                  minScaleToCoverCrop = fullSlot.bounds.width / rotatedWidth;
+                  effectiveCropH = fullSlot.bounds.height;
+                  effectiveCropW = fullSlot.bounds.height * targetAR;
+                }
+
+                const rotatedAspect = rotatedWidth / rotatedHeight;
+                const effectiveAspect = effectiveCropW / effectiveCropH;
+                let minScaleToCoverCrop: number;
+                if (rotatedAspect > effectiveAspect) {
+                  minScaleToCoverCrop = effectiveCropH / rotatedHeight;
+                } else {
+                  minScaleToCoverCrop = effectiveCropW / rotatedWidth;
                 }
 
                 // The saved transform.scale is relative to minScaleToCoverCrop (calculated for crop dimensions)

@@ -31,38 +31,26 @@ export function EditorCanvas({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [lastTransform, setLastTransform] = useState({ offsetX: 0, offsetY: 0 });
   const [pinchStart, setPinchStart] = useState<{ distance: number; scale: number } | null>(null);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [displayDimensions, setDisplayDimensions] = useState({ width: 600, height: 400 });
 
   const minScale = useRef(1);
   const maxScale = 3;
-  const maxDisplayWidth = 2400;
-  const maxDisplayHeight = 1800;
 
+  // Observe the canvas's own rendered size — no feedback loop
   useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        const parent = containerRef.current.closest('.flex-1');
-        if (parent) {
-          const rect = parent.getBoundingClientRect();
-          setContainerSize({
-            width: Math.max(rect.width - 32, 400),
-            height: Math.max(rect.height - 32, 400)
-          });
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          console.log('[EditorCanvas] Canvas self-observed size:', { width, height, aspectRatio: width / height });
+          setDisplayDimensions({ width, height });
         }
       }
-    };
-
-    updateSize();
-    const resizeObserver = new ResizeObserver(updateSize);
-    if (containerRef.current?.parentElement) {
-      resizeObserver.observe(containerRef.current.parentElement);
-    }
-
-    window.addEventListener('resize', updateSize);
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateSize);
-    };
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
@@ -118,42 +106,39 @@ export function EditorCanvas({
       return { x: 0, y: 0 };
     }
 
-    // Compute display dimensions exactly as the render body does
-    const availableW = containerSize.width > 0 ? containerSize.width : maxDisplayWidth;
-    const availableH = containerSize.height > 0 ? containerSize.height : maxDisplayHeight;
+    // Use consistent effective 3:2 frame dimensions (not dependent on containerSize)
+    // This ensures constraints are the same on mobile and desktop, matching CalendarEditor
     const targetAR = 3 / 2;
     const cropAR = cropWidth / cropHeight;
-
-    let displayW: number, displayH: number;
+    let effectiveCropW: number, effectiveCropH: number;
     if (cropAR > targetAR) {
-      displayH = Math.min(availableH, maxDisplayHeight);
-      displayW = displayH * targetAR;
+      effectiveCropW = cropWidth;
+      effectiveCropH = cropWidth / targetAR;
     } else {
-      displayW = Math.min(availableW, maxDisplayWidth);
-      displayH = displayW / targetAR;
+      effectiveCropH = cropHeight;
+      effectiveCropW = cropHeight * targetAR;
     }
 
-    const scaleFactor = Math.min(displayW / cropWidth, displayH / cropHeight);
     const normalizedScale = scale / minScaleToCover;
 
     const originalAspect = transform.originalWidth / transform.originalHeight;
-    const frameAspect = displayW / displayH;
+    const frameAspect = effectiveCropW / effectiveCropH;
 
     let baseImageW: number, baseImageH: number;
     if (originalAspect > frameAspect) {
-      baseImageH = displayH;
-      baseImageW = displayH * originalAspect;
+      baseImageH = effectiveCropH;
+      baseImageW = effectiveCropH * originalAspect;
     } else {
-      baseImageW = displayW;
-      baseImageH = displayW / originalAspect;
+      baseImageW = effectiveCropW;
+      baseImageH = effectiveCropW / originalAspect;
     }
 
-    const scaledW_px = baseImageW * normalizedScale;
-    const scaledH_px = baseImageH * normalizedScale;
+    const scaledW = baseImageW * normalizedScale;
+    const scaledH = baseImageH * normalizedScale;
 
-    // Max offset in display pixels, then convert to crop units
-    const maxX = (scaledW_px - displayW) / (2 * scaleFactor);
-    const maxY = (scaledH_px - displayH) / (2 * scaleFactor);
+    // Max offset in crop units (consistent across all screen sizes)
+    const maxX = (scaledW - effectiveCropW) / 2;
+    const maxY = (scaledH - effectiveCropH) / 2;
 
     if (maxX < 0.001 || maxY < 0.001) {
       return { x: 0, y: 0 };
@@ -163,7 +148,7 @@ export function EditorCanvas({
       x: Math.max(-maxX, Math.min(maxX, x)),
       y: Math.max(-maxY, Math.min(maxY, y)),
     };
-  }, [transform.originalWidth, transform.originalHeight, transform.rotation, cropWidth, cropHeight, containerSize]);
+  }, [transform.originalWidth, transform.originalHeight, transform.rotation, cropWidth, cropHeight]);
 
   useEffect(() => {
     const constrained = constrainPosition(transform.offsetX, transform.offsetY, transform.scale);
@@ -172,6 +157,7 @@ export function EditorCanvas({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transform.scale, transform.rotation, transform.originalWidth, transform.originalHeight, cropWidth, cropHeight, constrainPosition, onTransformChange]);
+
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -185,28 +171,8 @@ export function EditorCanvas({
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !containerRef.current) return;
 
-    // Calculate the actual display dimensions
-    const availableWidth = containerSize.width > 0 ? containerSize.width : maxDisplayWidth;
-    const availableHeight = containerSize.height > 0 ? containerSize.height : maxDisplayHeight;
-    const targetAspectRatio = 3 / 2;
-    const cropAspectRatio = cropWidth / cropHeight;
-
-    let displayWidth: number;
-    let displayHeight: number;
-
-    if (cropAspectRatio > targetAspectRatio) {
-      displayHeight = Math.min(availableHeight, maxDisplayHeight);
-      displayWidth = displayHeight * targetAspectRatio;
-    } else {
-      displayWidth = Math.min(availableWidth, maxDisplayWidth);
-      displayHeight = displayWidth / targetAspectRatio;
-    }
-
-    const scaleFactor = Math.min(
-      displayWidth / cropWidth,
-      displayHeight / cropHeight
-    );
-
+    const effW = (cropWidth / cropHeight) > (3 / 2) ? cropWidth : cropHeight * (3 / 2);
+    const scaleFactor = displayDimensions.width / effW;
     const deltaX = (e.clientX - dragStart.x) / scaleFactor;
     const deltaY = (e.clientY - dragStart.y) / scaleFactor;
 
@@ -215,7 +181,7 @@ export function EditorCanvas({
 
     const constrained = constrainPosition(newX, newY, transform.scale);
     onTransformChange({ offsetX: constrained.x, offsetY: constrained.y });
-  }, [isDragging, dragStart, lastTransform, transform.scale, cropWidth, cropHeight, containerSize, maxDisplayWidth, maxDisplayHeight, constrainPosition, onTransformChange]);
+  }, [isDragging, dragStart, lastTransform, transform.scale, cropWidth, cropHeight, displayDimensions, constrainPosition, onTransformChange]);
 
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
@@ -276,27 +242,8 @@ export function EditorCanvas({
   }, [transform.offsetX, transform.offsetY, transform.scale, getTouchDistance, onDragStart]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    // Calculate the actual display dimensions
-    const availableWidth = containerSize.width > 0 ? containerSize.width : maxDisplayWidth;
-    const availableHeight = containerSize.height > 0 ? containerSize.height : maxDisplayHeight;
-    const targetAspectRatio = 3 / 2;
-    const cropAspectRatio = cropWidth / cropHeight;
-
-    let displayWidth: number;
-    let displayHeight: number;
-
-    if (cropAspectRatio > targetAspectRatio) {
-      displayHeight = Math.min(availableHeight, maxDisplayHeight);
-      displayWidth = displayHeight * targetAspectRatio;
-    } else {
-      displayWidth = Math.min(availableWidth, maxDisplayWidth);
-      displayHeight = displayWidth / targetAspectRatio;
-    }
-
-    const scaleFactor = Math.min(
-      displayWidth / cropWidth,
-      displayHeight / cropHeight
-    );
+    const effW = (cropWidth / cropHeight) > (3 / 2) ? cropWidth : cropHeight * (3 / 2);
+    const scaleFactor = displayDimensions.width / effW;
 
     if (e.touches.length === 2 && pinchStart) {
       e.preventDefault();
@@ -325,7 +272,7 @@ export function EditorCanvas({
         offsetY: constrained.y,
       });
     }
-  }, [isDragging, dragStart, lastTransform, transform.scale, transform.offsetX, transform.offsetY, pinchStart, cropWidth, cropHeight, containerSize, maxDisplayWidth, maxDisplayHeight, getTouchDistance, constrainPosition, onTransformChange]);
+  }, [isDragging, dragStart, lastTransform, transform.scale, transform.offsetX, transform.offsetY, pinchStart, cropWidth, displayDimensions, getTouchDistance, constrainPosition, onTransformChange]);
 
   const handleTouchEnd = useCallback(() => {
     if (isDragging) {
@@ -339,35 +286,21 @@ export function EditorCanvas({
     setPinchStart(null);
   }, [isDragging, transform.offsetX, transform.offsetY, transform.scale, constrainPosition, onTransformChange, onDragEnd]);
 
-  const availableWidth = containerSize.width > 0 ? containerSize.width : maxDisplayWidth;
-  const availableHeight = containerSize.height > 0 ? containerSize.height : maxDisplayHeight;
+  const displayWidth = displayDimensions.width;
+  const displayHeight = displayDimensions.height;
 
-  const targetAspectRatio = 3 / 2;
-  const cropAspectRatio = cropWidth / cropHeight;
+  // Effective 3:2 crop frame — must match constrainPosition
+  const targetAR = 3 / 2;
+  const cropAR = cropWidth / cropHeight;
+  const effectiveCropW = cropAR > targetAR ? cropWidth : cropHeight * targetAR;
+  const effectiveCropH = effectiveCropW / targetAR;
 
-  let displayWidth: number;
-  let displayHeight: number;
+  // scaleFactor converts effective-crop-space units → display pixels
+  const scaleFactor = displayWidth / effectiveCropW;
 
-  if (cropAspectRatio > targetAspectRatio) {
-    displayHeight = Math.min(availableHeight, maxDisplayHeight);
-    displayWidth = displayHeight * targetAspectRatio;
-  } else {
-    displayWidth = Math.min(availableWidth, maxDisplayWidth);
-    displayHeight = displayWidth / targetAspectRatio;
-  }
-
-  const scaleFactor = Math.min(
-    displayWidth / cropWidth,
-    displayHeight / cropHeight
-  );
-
-  // Calculate image size to cover the entire 3:2 frame
-  // The image should be sized to fill the display area completely
   const originalAspect = transform.originalWidth / transform.originalHeight;
-  const frameAspect = displayWidth / displayHeight;
+  const frameAspect = displayWidth / displayHeight; // always 3:2
 
-  // Calculate what the minimum scale should be to cover the crop area
-  // This is used to normalize the transform.scale value
   const rotationRad = (transform.rotation * Math.PI) / 180;
   const cos = Math.abs(Math.cos(rotationRad));
   const sin = Math.abs(Math.sin(rotationRad));
@@ -375,32 +308,26 @@ export function EditorCanvas({
   const rotatedHeight = transform.originalWidth * sin + transform.originalHeight * cos;
   const rotatedAspect = rotatedWidth / rotatedHeight;
 
+  // minScaleToCoverCrop uses effectiveCropW/H — same as constrainPosition
   let minScaleToCoverCrop: number;
-  if (rotatedAspect > cropWidth / cropHeight) {
-    minScaleToCoverCrop = cropHeight / rotatedHeight;
+  if (rotatedAspect > effectiveCropW / effectiveCropH) {
+    minScaleToCoverCrop = effectiveCropH / rotatedHeight;
   } else {
-    minScaleToCoverCrop = cropWidth / rotatedWidth;
+    minScaleToCoverCrop = effectiveCropW / rotatedWidth;
   }
 
-  // Calculate the base size needed to cover the frame at scale=1
   let baseImageWidth: number;
   let baseImageHeight: number;
 
   if (originalAspect > frameAspect) {
-    // Image is wider than frame - make height match frame height
     baseImageHeight = displayHeight;
     baseImageWidth = displayHeight * originalAspect;
   } else {
-    // Image is taller than frame - make width match frame width  
     baseImageWidth = displayWidth;
     baseImageHeight = displayWidth / originalAspect;
   }
 
-  // Normalize the scale: transform.scale is relative to minScaleToCoverCrop
-  // We want scale=1 to mean "covers the frame", so we normalize it
   const normalizedScale = transform.scale / minScaleToCoverCrop;
-
-  // Apply the normalized scale to the base size
   const scaledWidth = baseImageWidth * normalizedScale;
   const scaledHeight = baseImageHeight * normalizedScale;
 
@@ -416,12 +343,8 @@ export function EditorCanvas({
   return (
     <div
       ref={containerRef}
-      className="relative bg-gray-100 overflow-hidden border border-gray-300"
-      style={{
-        width: displayWidth,
-        height: displayHeight,
-        aspectRatio: '3/2',
-      }}
+      className="relative bg-gray-100 overflow-hidden border border-gray-300 w-full"
+      style={{ aspectRatio: '3/2' }}
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
@@ -474,3 +397,4 @@ export function EditorCanvas({
     </div>
   );
 }
+
