@@ -209,9 +209,70 @@ export function PhotoEditor({
     onDelete?.();
   }, [onDelete]);
 
+  const constrainTransform = useCallback((t: ImageTransform) => {
+    const rotationRad = (t.rotation * Math.PI) / 180;
+    const cos = Math.abs(Math.cos(rotationRad));
+    const sin = Math.abs(Math.sin(rotationRad));
+
+    const baseRotatedWidth = t.originalWidth * cos + t.originalHeight * sin;
+    const baseRotatedHeight = t.originalWidth * sin + t.originalHeight * cos;
+    const rotatedAspect = baseRotatedWidth / baseRotatedHeight;
+
+    let minScaleToCover: number;
+    if (rotatedAspect > cropWidth / cropHeight) {
+      minScaleToCover = cropHeight / baseRotatedHeight;
+    } else {
+      minScaleToCover = cropWidth / baseRotatedWidth;
+    }
+
+    if (t.scale <= minScaleToCover * 1.0001) {
+      return { ...t, offsetX: 0, offsetY: 0 };
+    }
+
+    // Use effective crop dimensions matching the 3:2 editor display frame
+    const targetAR = 3 / 2;
+    const cropAR = cropWidth / cropHeight;
+    let effectiveCropW: number, effectiveCropH: number;
+    if (cropAR > targetAR) {
+      effectiveCropW = cropWidth;
+      effectiveCropH = cropWidth / targetAR;
+    } else {
+      effectiveCropH = cropHeight;
+      effectiveCropW = cropHeight * targetAR;
+    }
+
+    const normalizedScale = t.scale / minScaleToCover;
+    const originalAspect = t.originalWidth / t.originalHeight;
+    const frameAspect = effectiveCropW / effectiveCropH;
+
+    let baseImageW: number, baseImageH: number;
+    if (originalAspect > frameAspect) {
+      baseImageH = effectiveCropH;
+      baseImageW = effectiveCropH * originalAspect;
+    } else {
+      baseImageW = effectiveCropW;
+      baseImageH = effectiveCropW / originalAspect;
+    }
+
+    const scaledW = baseImageW * normalizedScale;
+    const scaledH = baseImageH * normalizedScale;
+    const maxX = (scaledW - effectiveCropW) / 2;
+    const maxY = (scaledH - effectiveCropH) / 2;
+
+    if (maxX < 0.001 || maxY < 0.001) {
+      return { ...t, offsetX: 0, offsetY: 0 };
+    }
+
+    return {
+      ...t,
+      offsetX: Math.max(-maxX, Math.min(maxX, t.offsetX)),
+      offsetY: Math.max(-maxY, Math.min(maxY, t.offsetY)),
+    };
+  }, [cropWidth, cropHeight]);
+
   const handleSave = useCallback(() => {
-    onSave(transform);
-  }, [transform, onSave]);
+    onSave(constrainTransform(transform));
+  }, [transform, constrainTransform, onSave]);
 
   return (
     <div className="flex flex-col h-full md:rounded-2xl">

@@ -103,17 +103,75 @@ export function EditorCanvas({
     const cos = Math.abs(Math.cos(rotationRad));
     const sin = Math.abs(Math.sin(rotationRad));
 
-    const rotatedWidth = (transform.originalWidth * cos + transform.originalHeight * sin) * scale;
-    const rotatedHeight = (transform.originalWidth * sin + transform.originalHeight * cos) * scale;
+    const baseRotatedWidth = transform.originalWidth * cos + transform.originalHeight * sin;
+    const baseRotatedHeight = transform.originalWidth * sin + transform.originalHeight * cos;
+    const rotatedAspect = baseRotatedWidth / baseRotatedHeight;
 
-    const maxX = Math.max(0, (rotatedWidth - cropWidth) / 2);
-    const maxY = Math.max(0, (rotatedHeight - cropHeight) / 2);
+    let minScaleToCover: number;
+    if (rotatedAspect > cropWidth / cropHeight) {
+      minScaleToCover = cropHeight / baseRotatedHeight;
+    } else {
+      minScaleToCover = cropWidth / baseRotatedWidth;
+    }
+
+    if (scale <= minScaleToCover * 1.0001) {
+      return { x: 0, y: 0 };
+    }
+
+    // Compute display dimensions exactly as the render body does
+    const availableW = containerSize.width > 0 ? containerSize.width : maxDisplayWidth;
+    const availableH = containerSize.height > 0 ? containerSize.height : maxDisplayHeight;
+    const targetAR = 3 / 2;
+    const cropAR = cropWidth / cropHeight;
+
+    let displayW: number, displayH: number;
+    if (cropAR > targetAR) {
+      displayH = Math.min(availableH, maxDisplayHeight);
+      displayW = displayH * targetAR;
+    } else {
+      displayW = Math.min(availableW, maxDisplayWidth);
+      displayH = displayW / targetAR;
+    }
+
+    const scaleFactor = Math.min(displayW / cropWidth, displayH / cropHeight);
+    const normalizedScale = scale / minScaleToCover;
+
+    const originalAspect = transform.originalWidth / transform.originalHeight;
+    const frameAspect = displayW / displayH;
+
+    let baseImageW: number, baseImageH: number;
+    if (originalAspect > frameAspect) {
+      baseImageH = displayH;
+      baseImageW = displayH * originalAspect;
+    } else {
+      baseImageW = displayW;
+      baseImageH = displayW / originalAspect;
+    }
+
+    const scaledW_px = baseImageW * normalizedScale;
+    const scaledH_px = baseImageH * normalizedScale;
+
+    // Max offset in display pixels, then convert to crop units
+    const maxX = (scaledW_px - displayW) / (2 * scaleFactor);
+    const maxY = (scaledH_px - displayH) / (2 * scaleFactor);
+
+    if (maxX < 0.001 || maxY < 0.001) {
+      return { x: 0, y: 0 };
+    }
 
     return {
       x: Math.max(-maxX, Math.min(maxX, x)),
       y: Math.max(-maxY, Math.min(maxY, y)),
     };
-  }, [transform.originalWidth, transform.originalHeight, transform.rotation, cropWidth, cropHeight]);
+  }, [transform.originalWidth, transform.originalHeight, transform.rotation, cropWidth, cropHeight, containerSize]);
+
+  useEffect(() => {
+    const constrained = constrainPosition(transform.offsetX, transform.offsetY, transform.scale);
+    if (Math.abs(constrained.x - transform.offsetX) > 0.001 || Math.abs(constrained.y - transform.offsetY) > 0.001) {
+      onTransformChange({ offsetX: constrained.x, offsetY: constrained.y });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transform.scale, transform.rotation, transform.originalWidth, transform.originalHeight, cropWidth, cropHeight, constrainPosition, onTransformChange]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -156,18 +214,19 @@ export function EditorCanvas({
     const newY = lastTransform.offsetY + deltaY;
 
     const constrained = constrainPosition(newX, newY, transform.scale);
-    onTransformChange({
-      offsetX: constrained.x,
-      offsetY: constrained.y,
-    });
+    onTransformChange({ offsetX: constrained.x, offsetY: constrained.y });
   }, [isDragging, dragStart, lastTransform, transform.scale, cropWidth, cropHeight, containerSize, maxDisplayWidth, maxDisplayHeight, constrainPosition, onTransformChange]);
 
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
+      const constrained = constrainPosition(transform.offsetX, transform.offsetY, transform.scale);
+      if (Math.abs(constrained.x - transform.offsetX) > 0.001 || Math.abs(constrained.y - transform.offsetY) > 0.001) {
+        onTransformChange({ offsetX: constrained.x, offsetY: constrained.y });
+      }
       onDragEnd?.();
     }
-  }, [isDragging, onDragEnd]);
+  }, [isDragging, transform.offsetX, transform.offsetY, transform.scale, constrainPosition, onTransformChange, onDragEnd]);
 
   useEffect(() => {
     if (isDragging) {
@@ -190,13 +249,9 @@ export function EditorCanvas({
 
     if (newScale !== transform.scale) {
       const constrained = constrainPosition(transform.offsetX, transform.offsetY, newScale);
-      onTransformChange({
-        scale: newScale,
-        offsetX: constrained.x,
-        offsetY: constrained.y,
-      });
+      onTransformChange({ scale: newScale, offsetX: constrained.x, offsetY: constrained.y });
     }
-  }, [transform.scale, transform.offsetX, transform.offsetY, constrainPosition, onTransformChange]);
+  }, [transform.scale, transform.offsetX, transform.offsetY, cropWidth, cropHeight, constrainPosition, onTransformChange]);
 
   const getTouchDistance = useCallback((touches: React.TouchList) => {
     if (touches.length < 2) return 0;
@@ -254,11 +309,7 @@ export function EditorCanvas({
 
       if (newScale !== transform.scale) {
         const constrained = constrainPosition(transform.offsetX, transform.offsetY, newScale);
-        onTransformChange({
-          scale: newScale,
-          offsetX: constrained.x,
-          offsetY: constrained.y,
-        });
+        onTransformChange({ scale: newScale, offsetX: constrained.x, offsetY: constrained.y });
       }
     } else if (isDragging && e.touches.length === 1) {
       const touch = e.touches[0];
@@ -279,10 +330,14 @@ export function EditorCanvas({
   const handleTouchEnd = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
+      const constrained = constrainPosition(transform.offsetX, transform.offsetY, transform.scale);
+      if (Math.abs(constrained.x - transform.offsetX) > 0.001 || Math.abs(constrained.y - transform.offsetY) > 0.001) {
+        onTransformChange({ offsetX: constrained.x, offsetY: constrained.y });
+      }
       onDragEnd?.();
     }
     setPinchStart(null);
-  }, [isDragging, onDragEnd]);
+  }, [isDragging, transform.offsetX, transform.offsetY, transform.scale, constrainPosition, onTransformChange, onDragEnd]);
 
   const availableWidth = containerSize.width > 0 ? containerSize.width : maxDisplayWidth;
   const availableHeight = containerSize.height > 0 ? containerSize.height : maxDisplayHeight;
