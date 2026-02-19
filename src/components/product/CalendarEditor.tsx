@@ -134,22 +134,6 @@ export function CalendarEditor({
   void _title;
   void _onTitleChange;
 
-  console.log('[CalendarEditor] Props received:', {
-    layoutItemsCount: layoutItems.length,
-    layoutItems: layoutItems.map(item => ({
-      id: item.id,
-      slotId: item.slotId,
-      imageId: item.imageId,
-      transform: item.transform ? {
-        x: item.transform.x,
-        y: item.transform.y,
-        scale: item.transform.scale,
-        rotation: item.transform.rotation,
-      } : null,
-    })),
-    imagesCount: images.length,
-  });
-
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [menuOpenSlotId, setMenuOpenSlotId] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<Map<string, { width: number; height: number }>>(new Map());
@@ -170,18 +154,9 @@ export function CalendarEditor({
   const getImageForSlot = (slotId: string) => {
     const item = layoutItems.find((li) => li.slotId === slotId);
     if (!item?.imageId) {
-      console.log('[CalendarEditor] No image for slot', { slotId, item: item ? { id: item.id, slotId: item.slotId } : null });
       return null;
     }
     const image = images.find((img) => img.id === item.imageId) || null;
-    if (!image) {
-      console.log('[CalendarEditor] Image not found in images array', {
-        slotId,
-        imageId: item.imageId,
-        availableImageIds: images.map(img => img.id),
-        layoutItem: item
-      });
-    }
     return image;
   };
 
@@ -348,22 +323,12 @@ export function CalendarEditor({
   }, []);
 
   const handleSaveTransform = (slotId: string, transform: PhotoEditorTransform) => {
-    console.log('[CalendarEditor] handleSaveTransform called:', {
-      slotId,
-      photoEditorTransform: transform,
-    });
-
     const newTransform: LayoutItem['transform'] = {
       x: transform.offsetX,
       y: transform.offsetY,
       scale: transform.scale,
       rotation: transform.rotation,
     };
-
-    console.log('[CalendarEditor] Saving transform:', {
-      slotId,
-      newTransform,
-    });
 
     onTransformChange?.(slotId, newTransform);
     setEditingSlotId(null);
@@ -380,15 +345,6 @@ export function CalendarEditor({
       minScaleToCoverCrop = cropWidth / originalWidth;
     }
 
-    console.log('[CalendarEditor] convertTransform called:', {
-      oldTransform,
-      originalWidth,
-      originalHeight,
-      cropWidth,
-      cropHeight,
-      calculatedMinScaleToCoverCrop: minScaleToCoverCrop,
-    });
-
     if (!oldTransform) {
       const result = {
         scale: minScaleToCoverCrop,
@@ -396,7 +352,6 @@ export function CalendarEditor({
         offsetX: 0,
         offsetY: 0,
       };
-      console.log('[CalendarEditor] convertTransform: No oldTransform, returning default (minScale):', result);
       return result;
     }
 
@@ -414,12 +369,6 @@ export function CalendarEditor({
       offsetX: oldTransform.x ?? 0,
       offsetY: oldTransform.y ?? 0,
     };
-    console.log('[CalendarEditor] convertTransform: Returning converted transform:', {
-      ...result,
-      savedScale: oldTransform.scale,
-      minScaleToCoverCrop,
-      isScaleEqualToMin: oldTransform.scale === minScaleToCoverCrop,
-    });
     return result;
   };
 
@@ -558,10 +507,6 @@ export function CalendarEditor({
                 const containerSize = containerSizes.get(slot.id);
                 if (!containerSize || containerSize.width === 0 || containerSize.height === 0) {
                   // Container size not available yet, render without transform
-                  console.log('[CalendarEditor] Container size not available, rendering without transform:', {
-                    slotId: slot.id,
-                    containerSize,
-                  });
                   return (
                     <img
                       key={image.id}
@@ -627,31 +572,6 @@ export function CalendarEditor({
                   top: '50%',
                   left: '50%',
                 };
-
-                console.log('[CalendarEditor] Calculated image style:', {
-                  slotId: slot.id,
-                  scaledWidth,
-                  scaledHeight,
-                  normalizedScale,
-                  minScaleToCoverCrop,
-                  transformScale: transform.scale,
-                  baseImageWidth,
-                  baseImageHeight,
-                  rotatedWidth,
-                  rotatedHeight,
-                  originalAspect,
-                  displayAspect,
-                  rotatedAspect,
-                  cropAspect,
-                  displayWidth,
-                  displayHeight,
-                  cropToDisplayScale,
-                  imageStyle: {
-                    width: imageStyle.width,
-                    height: imageStyle.height,
-                    transform: imageStyle.transform,
-                  },
-                });
 
                 return (
                   <img

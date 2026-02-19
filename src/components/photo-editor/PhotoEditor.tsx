@@ -167,7 +167,6 @@ export function PhotoEditor({
   }, [originalWidth, originalHeight, cropWidth, cropHeight]);
 
   const handleFit = useCallback(() => {
-    // Fit: bg-contain - show full image, may leave empty space
     setTransform((prev) => {
       const rotationRad = (prev.rotation * Math.PI) / 180;
       const cos = Math.abs(Math.cos(rotationRad));
@@ -176,15 +175,25 @@ export function PhotoEditor({
       const rotatedWidth = originalWidth * cos + originalHeight * sin;
       const rotatedHeight = originalWidth * sin + originalHeight * cos;
 
-      const imgAspect = rotatedWidth / rotatedHeight;
-      const cropAspect = cropWidth / cropHeight;
-      let fitScale = 1;
-      if (imgAspect > cropAspect) {
-        // Image is wider - fit to width
-        fitScale = cropWidth / rotatedWidth;
+      // Fit within the effective 3:2 display frame, not the raw crop dimensions
+      const targetAR = 3 / 2;
+      const cropAR = cropWidth / cropHeight;
+      let effectiveCropW: number, effectiveCropH: number;
+      if (cropAR > targetAR) {
+        effectiveCropW = cropWidth;
+        effectiveCropH = cropWidth / targetAR;
       } else {
-        // Image is taller - fit to height
-        fitScale = cropHeight / rotatedHeight;
+        effectiveCropH = cropHeight;
+        effectiveCropW = cropHeight * targetAR;
+      }
+
+      const imgAspect = rotatedWidth / rotatedHeight;
+      const frameAspect = effectiveCropW / effectiveCropH;
+      let fitScale = 1;
+      if (imgAspect > frameAspect) {
+        fitScale = effectiveCropW / rotatedWidth;
+      } else {
+        fitScale = effectiveCropH / rotatedHeight;
       }
       return {
         ...prev,

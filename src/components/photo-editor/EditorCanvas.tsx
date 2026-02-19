@@ -251,7 +251,7 @@ export function EditorCanvas({
       const constrained = constrainPosition(transform.offsetX, transform.offsetY, newScale);
       onTransformChange({ scale: newScale, offsetX: constrained.x, offsetY: constrained.y });
     }
-  }, [transform.scale, transform.offsetX, transform.offsetY, cropWidth, cropHeight, constrainPosition, onTransformChange]);
+  }, [transform.scale, transform.offsetX, transform.offsetY, constrainPosition, onTransformChange]);
 
   const getTouchDistance = useCallback((touches: React.TouchList) => {
     if (touches.length < 2) return 0;
