@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Button } from '@/components/ui';
 import { EditorCanvas } from './EditorCanvas';
 import { EditorToolbar } from './EditorToolbar';
@@ -214,8 +214,30 @@ export function PhotoEditor({
   }, [transform, onSave]);
 
   return (
-    <div className="flex flex-col rounded-2xl">
-      <DialogHeader className="flex flex-row items-center justify-between px-6 pt-6 pb-4">
+    <div className="flex flex-col h-full md:rounded-2xl">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={onCancel}
+        >
+          <X className="h-5 w-5" />
+        </Button>
+        <DialogTitle className="text-lg font-semibold">Editar foto</DialogTitle>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={handleSave}
+        >
+          <Check className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Desktop Header */}
+      <DialogHeader className="hidden md:flex flex-row items-center justify-between px-6 pt-6 pb-4 flex-shrink-0">
         <DialogTitle className="text-xl font-semibold">Editar foto</DialogTitle>
         <Button
           variant="ghost"
@@ -227,7 +249,18 @@ export function PhotoEditor({
         </Button>
       </DialogHeader>
 
-      <div className="flex flex-1 overflow-hidden max-h-[calc(95vh-80px)] rounded-2xl">
+      {/* Mobile Quality Bar */}
+      <div className="md:hidden px-4 py-2 bg-gray-100 flex-shrink-0">
+        <QualityIndicator
+          originalWidth={originalWidth}
+          originalHeight={originalHeight}
+          scale={transform.scale}
+          cropWidth={cropWidth}
+          cropHeight={cropHeight}
+        />
+      </div>
+
+      <div className="flex flex-1 overflow-hidden min-h-0 rounded-2xl">
         <div
           ref={(el) => {
             if (el) {
@@ -236,7 +269,7 @@ export function PhotoEditor({
               el.setAttribute('data-height', rect.height.toString());
             }
           }}
-          className="flex-1 flex items-center justify-center bg-gray-50 p-4 min-h-0 overflow-auto"
+          className="flex-1 flex items-center justify-center bg-gray-50 p-2 md:p-4 min-h-0 overflow-auto"
         >
           <EditorCanvas
             imageUrl={imageUrl}
@@ -249,7 +282,8 @@ export function PhotoEditor({
           />
         </div>
 
-        <div className="w-96 border-l bg-white flex flex-col max-h-[calc(95vh-80px)]">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:flex w-96 border-l bg-white flex-col max-h-[calc(95vh-80px)]">
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <QualityIndicator
               originalWidth={originalWidth}
@@ -280,6 +314,21 @@ export function PhotoEditor({
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Toolbar */}
+      <div className="md:hidden bg-white border-t px-4 py-3 flex-shrink-0">
+        <EditorToolbar
+          showGrid={showGrid}
+          onRotate={handleRotate}
+          onToggleGrid={() => setShowGrid((prev) => !prev)}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onReplace={handleReplace}
+          onDelete={handleDelete}
+          onFill={handleFill}
+          onFit={handleFit}
+        />
       </div>
 
       <input

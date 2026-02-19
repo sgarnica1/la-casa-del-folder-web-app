@@ -474,7 +474,7 @@ export function CalendarEditor({
             </div>
           )}
         </div>
-        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 lg:p-6 border border-gray-200/60`}>
+        <div className={`w-full ${layoutMode === 'grid' ? 'h-full flex flex-col' : 'max-w-2xl'} bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-3 md:p-4 border border-gray-200/60`}>
           <div
             ref={(el) => {
               if (el) {
@@ -483,7 +483,7 @@ export function CalendarEditor({
                 containerRefs.current.delete(slot.id);
               }
             }}
-            className={`relative w-full aspect-[3/2] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 rounded-xl ${isLocked ? 'cursor-default' : 'cursor-pointer transition-all duration-200'}`}
+            className={`relative w-full aspect-[3/2] overflow-hidden bg-gray-100 mb-6 flex-shrink-0 rounded-none ${isLocked ? 'cursor-default' : 'cursor-pointer transition-all duration-200'}`}
             onClick={() => {
               if (image && !isLocked) {
                 handleEditClick(slot.id);
@@ -525,7 +525,7 @@ export function CalendarEditor({
                       key={image.id}
                       src={image.url}
                       alt={monthName}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover !rounded-none"
                       onLoad={() => {
                         if (!imageDimensions.has(image.id)) {
                           loadImageDimensions(image.url);
@@ -536,41 +536,15 @@ export function CalendarEditor({
                 }
 
                 if (!transform) {
-                  console.log('[CalendarEditor] Rendering image without transform:', {
-                    slotId: slot.id,
-                    imageId: image.id,
-                    monthName,
-                  });
                   return (
                     <img
                       key={image.id}
                       src={image.url}
                       alt={monthName}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover !rounded-none"
                     />
                   );
                 }
-
-                console.log('[CalendarEditor] Rendering image with transform:', {
-                  slotId: slot.id,
-                  imageId: image.id,
-                  monthName,
-                  transform: {
-                    x: transform.x,
-                    y: transform.y,
-                    scale: transform.scale,
-                    rotation: transform.rotation,
-                  },
-                  imageDimensions: dims,
-                  slotBounds: fullSlot.bounds,
-                  containerSize: containerSizes.get(slot.id),
-                  layoutItem: layoutItem ? {
-                    id: layoutItem.id,
-                    slotId: layoutItem.slotId,
-                    imageId: layoutItem.imageId,
-                    transform: layoutItem.transform,
-                  } : null,
-                });
 
                 // Apply transform similar to EditorCanvas
                 // The transform.scale is relative to the minimum scale needed to cover the crop area
@@ -764,7 +738,7 @@ export function CalendarEditor({
 
       {editingSlot && editingImage && editingDimensions && (
         <Dialog open={!!editingSlotId} onOpenChange={(open) => !open && setEditingSlotId(null)} closeOnOutsideClick={false}>
-          <DialogContent className="max-w-[95vw] w-full max-h-[90vh] p-0 flex flex-col !rounded-2xl">
+          <DialogContent className="w-full h-full md:w-full md:max-w-[95vw] md:h-auto md:max-h-[90vh] p-0 flex flex-col rounded-none md:!rounded-2xl m-0 md:m-4">
             <PhotoEditor
               imageId={editingImage.id}
               imageUrl={editingImage.url}

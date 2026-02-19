@@ -9,30 +9,55 @@ interface DialogProps {
 }
 
 const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children, closeOnOutsideClick = true }) => {
+  const [isAnimating, setIsAnimating] = React.useState(false);
+  const [shouldRender, setShouldRender] = React.useState(open);
+
   React.useEffect(() => {
     if (open) {
+      setShouldRender(true);
+      // Small delay to ensure DOM is ready for animation
+      requestAnimationFrame(() => {
+        setIsAnimating(true);
+      });
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = '';
+      setIsAnimating(false);
+      const timer = setTimeout(() => {
+        setShouldRender(false);
+      }, 300); // Match animation duration
+      return () => clearTimeout(timer);
     }
     return () => {
       document.body.style.overflow = '';
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!shouldRender) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className={cn(
+        "fixed inset-0 z-50 flex items-end md:items-center justify-center transition-opacity duration-300",
+        isAnimating ? "opacity-100" : "opacity-0"
+      )}
       onClick={(e) => {
         if (e.target === e.currentTarget && closeOnOutsideClick) {
           onOpenChange(false);
         }
       }}
     >
-      <div className="fixed inset-0 bg-black/50" />
-      <div className="relative z-50 w-full max-w-6xl mx-4">{children}</div>
+      <div className={cn(
+        "fixed inset-0 bg-black/50 transition-opacity duration-300",
+        isAnimating ? "opacity-100" : "opacity-0"
+      )} />
+      <div className={cn(
+        "relative z-50 w-full h-full md:w-full md:max-w-6xl md:h-auto md:mx-4 transition-all duration-300 ease-out",
+        isAnimating 
+          ? "translate-y-0 md:translate-y-0 md:scale-100" 
+          : "translate-y-full md:translate-y-4 md:scale-95"
+      )}>
+        {children}
+      </div>
     </div>
   );
 };

@@ -95,7 +95,7 @@ export function QualityIndicator({
   }, [originalWidth, originalHeight, scale, cropWidth, cropHeight, printDpi]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0 md:space-y-4">
       <div className="relative h-12 bg-gray-200 rounded-lg overflow-hidden">
         <div
           className="h-full bg-gray-400 transition-all duration-300 flex items-center px-4"
@@ -108,7 +108,7 @@ export function QualityIndicator({
         </div>
       </div>
 
-      <div className="text-xs space-y-2 text-gray-600">
+      <div className="hidden md:block text-xs space-y-2 text-gray-600">
         <div className="flex flex-col items-start gap-2">
           <div><span className="font-medium">Escala:</span> {Math.round(scale * 100)}%</div>
           <div><span className="font-medium">Dimensiones:</span> {metrics.resolution}</div>
