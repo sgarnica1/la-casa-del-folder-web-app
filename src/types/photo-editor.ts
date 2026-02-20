@@ -1,4 +1,4 @@
-export interface ImageTransform {
+export interface PhotoEditorTransform {
   imageId: string;
   originalWidth: number;
   originalHeight: number;

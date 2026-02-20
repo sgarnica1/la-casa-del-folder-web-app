@@ -1,6 +1,6 @@
 import { BaseApiClient } from './base-api-client';
 import { handleResponse, handleFetchError } from './base-api-client';
-import type { Draft } from '@/types';
+import type { Draft, DraftStatus } from '@/types';
 
 export class DraftApi extends BaseApiClient {
   async getDraft(draftId: string): Promise<Draft> {
@@ -158,9 +158,9 @@ export class DraftApi extends BaseApiClient {
         updatedAt: string;
       }>(response);
 
-      const mappedDraft = {
+      const mappedDraft: Draft = {
         id: data.id,
-        status: data.state === 'editing' ? 'draft' : (data.state as 'locked' | 'ordered'),
+        status: (data.state === 'editing' ? 'draft' : (data.state === 'locked' ? 'locked' : 'ordered')) as DraftStatus,
         productId: '',
         templateId: '',
         title: data.title,

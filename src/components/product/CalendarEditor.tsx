@@ -4,7 +4,7 @@ import { Button } from '@/components/ui';
 import { Dialog, DialogContent } from '@/components/ui';
 import { PhotoEditor } from '@/components/photo-editor';
 import type { Layout, LayoutItem } from '@/types';
-import type { ImageTransform as PhotoEditorTransform } from '@/types/photo-editor';
+import type { PhotoEditorTransform } from '@/types/photo-editor';
 
 interface UploadedImage {
   id: string;

@@ -1,14 +1,14 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import type { ImageTransform } from '@/types/photo-editor';
+import type { PhotoEditorTransform } from '@/types/photo-editor';
 
 interface EditorCanvasProps {
   imageUrl: string;
-  transform: ImageTransform;
+  transform: PhotoEditorTransform;
   cropWidth: number;
   cropHeight: number;
   aspectRatio?: number;
   showGrid: boolean;
-  onTransformChange: (transform: Partial<ImageTransform>) => void;
+  onTransformChange: (transform: Partial<PhotoEditorTransform>) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
 }
@@ -264,7 +264,7 @@ export function EditorCanvas({
         offsetY: constrained.y,
       });
     }
-  }, [isDragging, dragStart, lastTransform, transform.scale, transform.offsetX, transform.offsetY, pinchStart, cropWidth, displayDimensions, getTouchDistance, constrainPosition, onTransformChange]);
+  }, [isDragging, dragStart, lastTransform, transform.scale, transform.offsetX, transform.offsetY, pinchStart, cropWidth, cropHeight, displayDimensions, getTouchDistance, constrainPosition, onTransformChange]);
 
   const handleTouchEnd = useCallback(() => {
     if (isDragging) {

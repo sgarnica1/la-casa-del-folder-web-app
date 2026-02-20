@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { EditorCanvas } from './EditorCanvas';
 import { EditorToolbar } from './EditorToolbar';
 import { QualityIndicator } from './QualityIndicator';
-import type { ImageTransform } from '@/types/photo-editor';
+import type { PhotoEditorTransform } from '@/types/photo-editor';
 
 interface PhotoEditorProps {
   imageId: string;
@@ -14,8 +14,8 @@ interface PhotoEditorProps {
   cropWidth: number;
   cropHeight: number;
   aspectRatio: number;
-  initialTransform?: Partial<ImageTransform>;
-  onSave: (transform: ImageTransform) => void;
+  initialTransform?: Partial<PhotoEditorTransform>;
+  onSave: (transform: PhotoEditorTransform) => void;
   onCancel: () => void;
   onReplace?: () => void;
   onDelete?: () => void;
@@ -35,7 +35,7 @@ export function PhotoEditor({
   onReplace,
   onDelete,
 }: PhotoEditorProps) {
-  const [transform, setTransform] = useState<ImageTransform>(() => {
+  const [transform, setTransform] = useState<PhotoEditorTransform>(() => {
     const imgAspect = originalWidth / originalHeight;
     const cropAspect = cropWidth / cropHeight;
     let initialScale = 1;
@@ -81,7 +81,7 @@ export function PhotoEditor({
     }
   }, [imageId, originalWidth, originalHeight, cropWidth, cropHeight, initialTransform]);
 
-  const handleTransformChange = useCallback((updates: Partial<ImageTransform>) => {
+  const handleTransformChange = useCallback((updates: Partial<PhotoEditorTransform>) => {
     setTransform((prev) => ({ ...prev, ...updates }));
   }, []);
 
@@ -223,7 +223,7 @@ export function PhotoEditor({
     onDelete?.();
   }, [onDelete]);
 
-  const constrainTransform = useCallback((t: ImageTransform) => {
+  const constrainTransform = useCallback((t: PhotoEditorTransform) => {
     const rotationRad = (t.rotation * Math.PI) / 180;
     const cos = Math.abs(Math.cos(rotationRad));
     const sin = Math.abs(Math.sin(rotationRad));
