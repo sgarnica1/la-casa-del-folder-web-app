@@ -41,32 +41,6 @@ export class DraftApi extends BaseApiClient {
         updatedAt: data.updatedAt,
       };
 
-      console.log('[DraftApi] getDraft response mapped:', {
-        draftId,
-        rawData: {
-          ...data,
-          layoutItems: data.layoutItems.map(item => ({
-            id: item.id,
-            slotId: item.slotId,
-            imageId: item.imageId,
-            transform: item.transform,
-          })),
-        },
-        mappedDraft: {
-          ...mappedDraft,
-          layoutItems: mappedDraft.layoutItems.map(item => ({
-            id: item.id,
-            slotId: item.slotId,
-            imageId: item.imageId,
-            transform: item.transform ? {
-              x: item.transform.x,
-              y: item.transform.y,
-              scale: item.transform.scale,
-              rotation: item.transform.rotation,
-            } : null,
-          })),
-        },
-      });
 
       return mappedDraft;
     } catch (error) {
@@ -174,32 +148,6 @@ export class DraftApi extends BaseApiClient {
         updatedAt: data.updatedAt,
       };
 
-      console.log('[DraftApi] getMyDraftById response mapped:', {
-        draftId,
-        rawData: {
-          ...data,
-          layoutItems: data.layoutItems.map(item => ({
-            id: item.id,
-            slotId: item.slotId,
-            imageId: item.imageId,
-            transform: item.transform,
-          })),
-        },
-        mappedDraft: {
-          ...mappedDraft,
-          layoutItems: mappedDraft.layoutItems.map(item => ({
-            id: item.id,
-            slotId: item.slotId,
-            imageId: item.imageId,
-            transform: item.transform ? {
-              x: item.transform.x,
-              y: item.transform.y,
-              scale: item.transform.scale,
-              rotation: item.transform.rotation,
-            } : null,
-          })),
-        },
-      });
 
       return mappedDraft;
     } catch (error) {

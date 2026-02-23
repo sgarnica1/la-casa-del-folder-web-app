@@ -97,8 +97,8 @@ export function EditorToolbar({
         disabled={disabled}
         className="flex flex-col items-center justify-center h-20 w-20 md:w-auto flex-shrink-0 p-2 border border-red-200 bg-red-50 hover:bg-red-100 text-black hover:text-black"
       >
-        <Trash2 className="h-5 w-5 mb-1" />
-        <span className="text-xs">Eliminar</span>
+        <Trash2 className="h-5 w-5 mb-1 text-red-500" />
+        <span className="text-xs text-red-500">Eliminar</span>
       </Button>
     </div>
   );

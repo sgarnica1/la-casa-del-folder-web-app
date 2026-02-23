@@ -140,6 +140,7 @@ export function CalendarEditor({
   const [containerSizes, setContainerSizes] = useState<Map<string, { width: number; height: number }>>(new Map());
   const menuRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const containerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const sortedSlots = sortSlots(layout.slots);
   const coverSlot = sortedSlots.find(
     (s) => s.name.toLowerCase().includes('portada') || s.name.toLowerCase().includes('cover')
@@ -221,15 +222,18 @@ export function CalendarEditor({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpenSlotId]);
 
-  // Proactively load image dimensions for all images with transforms
+
+  // Proactively load image dimensions for all images (needed to apply transforms)
   useEffect(() => {
     const loadAllImageDimensions = async () => {
       // Check current state to see what we need to load
       setImageDimensions((prev) => {
         const imagesToLoad: Array<{ id: string; url: string }> = [];
 
+        // Load dimensions for all images that are used in layoutItems
+        // This is needed to apply transforms correctly, even if transform data exists
         layoutItems.forEach((item) => {
-          if (item.imageId && item.transform) {
+          if (item.imageId) {
             const image = images.find((img) => img.id === item.imageId);
             if (image && !prev.has(image.id)) {
               imagesToLoad.push({ id: image.id, url: image.url });
@@ -300,25 +304,59 @@ export function CalendarEditor({
       });
     };
 
+    // Create observer if it doesn't exist
+    if (!resizeObserverRef.current) {
+      resizeObserverRef.current = new ResizeObserver(() => {
+        requestAnimationFrame(updateContainerSizes);
+      });
+    }
+
+    const resizeObserver = resizeObserverRef.current;
+
     // Initial update after a short delay to ensure DOM is ready
-    const timeoutId = setTimeout(updateContainerSizes, 0);
+    const timeoutId = setTimeout(updateContainerSizes, 100);
 
     window.addEventListener('resize', updateContainerSizes);
 
-    const resizeObserver = new ResizeObserver(() => {
-      // Use requestAnimationFrame to batch updates
-      requestAnimationFrame(updateContainerSizes);
-    });
-
     // Observe all current containers
     containerRefs.current.forEach((el) => {
-      if (el) resizeObserver.observe(el);
+      if (el) {
+        try {
+          resizeObserver.observe(el);
+        } catch {
+          // Element might already be observed
+        }
+      }
     });
+
+    // Also set up a delayed check to catch containers that might be added later
+    const delayedCheck = setTimeout(() => {
+      containerRefs.current.forEach((el) => {
+        if (el) {
+          try {
+            resizeObserver.observe(el);
+          } catch {
+            // Element might already be observed
+          }
+        }
+      });
+      updateContainerSizes();
+    }, 300);
 
     return () => {
       clearTimeout(timeoutId);
+      clearTimeout(delayedCheck);
       window.removeEventListener('resize', updateContainerSizes);
-      resizeObserver.disconnect();
+    };
+  }, [layoutItems, images]);
+
+  // Cleanup observer on unmount
+  useEffect(() => {
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
     };
   }, []);
 
@@ -405,6 +443,7 @@ export function CalendarEditor({
     const transform = layoutItem?.transform;
     const calendarDays = monthNum ? generateCalendarDays(year, monthNum) : [];
 
+
     return (
       <div key={slot.id} className={layoutMode === 'grid' ? 'h-full flex flex-col' : 'flex flex-col items-center mb-8'}>
         <div className={`w-full ${layoutMode === 'grid' ? '' : 'max-w-2xl'} mb-3 flex items-center justify-between`}>
@@ -445,6 +484,25 @@ export function CalendarEditor({
             ref={(el) => {
               if (el) {
                 containerRefs.current.set(slot.id, el);
+                // Observe the element immediately when it's attached
+                if (resizeObserverRef.current) {
+                  try {
+                    resizeObserverRef.current.observe(el);
+                  } catch {
+                    // Element might already be observed
+                  }
+                  // Trigger size update
+                  requestAnimationFrame(() => {
+                    const rect = el.getBoundingClientRect();
+                    if (rect.width > 0 && rect.height > 0) {
+                      setContainerSizes((prev) => {
+                        const updated = new Map(prev);
+                        updated.set(slot.id, { width: rect.width, height: rect.height });
+                        return updated;
+                      });
+                    }
+                  });
+                }
               } else {
                 containerRefs.current.delete(slot.id);
               }
@@ -475,6 +533,8 @@ export function CalendarEditor({
             ) : image ? (
               (() => {
                 const dims = imageDimensions.get(image.id);
+
+
                 if (!dims) {
                   return (
                     <img
@@ -512,6 +572,7 @@ export function CalendarEditor({
 
                 // Get the actual display container size
                 const containerSize = containerSizes.get(slot.id);
+
                 if (!containerSize || containerSize.width === 0 || containerSize.height === 0) {
                   // Container size not available yet, render without transform
                   return (

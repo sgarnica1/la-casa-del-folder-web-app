@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Image, Lock, MoreVertical, Edit } from 'lucide-react';
+import { Image, Lock, MoreVertical, Edit, Eye } from 'lucide-react';
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { useWaitForToken } from '@/hooks/useWaitForToken';
+import { useCart } from '@/contexts/CartContext';
 
 interface DraftSummary {
   id: string;
@@ -46,6 +47,7 @@ function formatDate(dateString: string): string {
 export function MyDraftsPage() {
   const navigate = useNavigate();
   const { waitForToken, isLoaded, isSignedIn } = useWaitForToken();
+  const { cart } = useCart();
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
@@ -61,27 +63,14 @@ export function MyDraftsPage() {
     }
 
     const loadDrafts = async () => {
-      console.log('[MyDraftsPage] Waiting for token before loading drafts...');
       const token = await waitForToken();
       if (!token) {
-        console.warn('[MyDraftsPage] No token available after retries, cannot load drafts');
         setIsLoading(false);
         return;
       }
 
-      console.log('[MyDraftsPage] Token available, loading drafts...');
       try {
         const data = await apiClient.drafts.getMyDrafts();
-        console.log('[MyDraftsPage] Received drafts from API:', {
-          count: data.length,
-          drafts: data.map(d => ({
-            id: d.id,
-            title: d.title,
-            state: d.state,
-            hasCoverUrl: !!d.coverUrl,
-            coverUrl: d.coverUrl
-          }))
-        });
         setDrafts(data);
       } catch (err: unknown) {
         console.error('[MyDraftsPage] Error loading drafts:', err);
@@ -220,19 +209,6 @@ export function MyDraftsPage() {
                             onMouseLeave={(e) => {
                               e.currentTarget.style.transform = 'scale(1)';
                             }}
-                            onError={(e) => {
-                              console.error('[MyDraftsPage] Image failed to load:', {
-                                draftId: draft.id,
-                                coverUrl: draft.coverUrl,
-                                error: e
-                              });
-                            }}
-                            onLoad={() => {
-                              console.log('[MyDraftsPage] Image loaded successfully:', {
-                                draftId: draft.id,
-                                coverUrl: draft.coverUrl
-                              });
-                            }}
                           />
                           {/* Subtle gradient overlay */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
@@ -268,13 +244,23 @@ export function MyDraftsPage() {
                       </div>
 
                       {/* Primary Action Button */}
-                      <Button
-                        onClick={() => handleViewDraft(draft.id, draft.state)}
-                        className="w-full rounded-xl h-10 font-medium bg-gray-900 hover:bg-gray-800 text-white transition-colors duration-150 shadow-sm hover:shadow"
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar diseño
-                      </Button>
+                      {(() => {
+                        const isLocked = draft.state === 'locked';
+                        const isInCart = cart?.items.some(item => item.draftId === draft.id) ?? false;
+                        const isLockedAndInCart = isLocked && isInCart;
+                        const buttonText = isLockedAndInCart ? 'Ver Diseño' : 'Editar diseño';
+                        const Icon = isLockedAndInCart ? Eye : Edit;
+
+                        return (
+                          <Button
+                            onClick={() => handleViewDraft(draft.id, draft.state)}
+                            className="w-full rounded-xl h-10 font-medium bg-gray-900 hover:bg-gray-800 text-white transition-colors duration-150 shadow-sm hover:shadow"
+                          >
+                            <Icon className="h-4 w-4 mr-2" />
+                            {buttonText}
+                          </Button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </CardContent>

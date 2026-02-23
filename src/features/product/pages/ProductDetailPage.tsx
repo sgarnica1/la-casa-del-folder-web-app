@@ -39,21 +39,18 @@ export function ProductDetailPage() {
 
     try {
       // Wait for token to be available before creating draft
-      console.log('[ProductDetailPage] Waiting for token before creating draft...');
       const token = await waitForToken();
 
       if (!token) {
         throw new Error('No se pudo obtener el token de autenticación. Por favor, intenta nuevamente.');
       }
 
-      console.log('[ProductDetailPage] Token available, creating draft...');
       const draft = await apiClient.drafts.createDraft(HARDCODED_PRODUCT_ID, HARDCODED_TEMPLATE_ID);
       sessionStorage.setItem(AUTO_CREATE_KEY, 'true');
       sessionStorage.removeItem(PENDING_DRAFT_CREATE_KEY);
       toast.success('Borrador creado exitosamente');
       navigate(`/draft/${draft.id}/upload`, { replace: true });
     } catch (err) {
-      console.error('[ProductDetailPage] Error creating draft:', err);
       toast.error(err);
       setIsLoading(false);
     }
@@ -152,11 +149,10 @@ export function ProductDetailPage() {
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
-                className={`relative aspect-square bg-gray-50 rounded-xl overflow-hidden border-2 transition-all duration-150 ${
-                  selectedImage === index
+                className={`relative aspect-square bg-gray-50 rounded-xl overflow-hidden border-2 transition-all duration-150 ${selectedImage === index
                     ? 'border-gray-900 scale-105 shadow-md'
                     : 'border-gray-200 hover:border-gray-300 hover:scale-105'
-                }`}
+                  }`}
               >
                 <img
                   src={image}
@@ -185,21 +181,19 @@ export function ProductDetailPage() {
             <div className="inline-flex gap-2 p-1 bg-gray-100 rounded-full">
               <button
                 onClick={() => setSelectedVariant('mediano')}
-                className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-150 ${
-                  selectedVariant === 'mediano'
+                className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-150 ${selectedVariant === 'mediano'
                     ? 'bg-gray-900 text-white shadow-sm'
                     : 'bg-transparent text-gray-700 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Mediano
               </button>
               <button
                 onClick={() => setSelectedVariant('grande')}
-                className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-150 ${
-                  selectedVariant === 'grande'
+                className={`px-6 py-2.5 rounded-full font-medium text-sm transition-all duration-150 ${selectedVariant === 'grande'
                     ? 'bg-gray-900 text-white shadow-sm'
                     : 'bg-transparent text-gray-700 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 Grande
               </button>
