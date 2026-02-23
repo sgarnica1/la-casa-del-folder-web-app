@@ -8,3 +8,4 @@ export type * from './product';
 export type * from './editor';
 export * from './order';
 export * from './user';
+export * from './photo-editor';

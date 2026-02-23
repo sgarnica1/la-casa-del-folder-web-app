@@ -62,7 +62,7 @@ export function MyDraftDetailPage() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const isMdOrLarger = useIsMdOrLarger();
   const toast = useToast();
-  const { refreshCart } = useCart();
+  const { cart, refreshCart } = useCart();
   useApiClient();
 
   useEffect(() => {
@@ -140,6 +140,36 @@ export function MyDraftDetailPage() {
     loadData();
   }, [id, isLoaded, isSignedIn, waitForToken, navigate, toast, addImages]);
 
+  // Refresh draft when cart changes (to reflect unlocked state after removal)
+  useEffect(() => {
+    if (!id || !isLoaded || !isSignedIn || !draft) return;
+
+    const refreshDraft = async () => {
+      try {
+        const token = await waitForToken();
+        if (!token) return;
+
+        const updatedDraft = await apiClient.drafts.getMyDraftById(id);
+
+        // Only update if status changed (to avoid unnecessary re-renders)
+        if (updatedDraft.status !== draft.status) {
+          setDraft(updatedDraft);
+        }
+
+        // Check if draft is in cart
+        const inCart = cart?.items.some(item => item.draftId === id) ?? false;
+        setIsInCart(inCart);
+      } catch (err) {
+        // Silently fail - draft might not exist or user might not have access
+        console.warn('[MyDraftDetailPage] Failed to refresh draft:', err);
+      }
+    };
+
+    // Refresh when cart changes
+    refreshDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isLoaded, isSignedIn, waitForToken, cart?.items.length, draft?.id, draft?.status]);
+
   if (isLoading) {
     return (
       <div className="w-full bg-gray-50 min-h-screen">
@@ -169,6 +199,7 @@ export function MyDraftDetailPage() {
   const isLocked = draft.status === 'locked';
   const isOrdered = draft.status === 'ordered';
   const canAddToCart = (isEditing || isLocked) && !isInCart && !isOrdered;
+  const canEdit = !isOrdered && (!isLocked || !isInCart); // Can edit if not ordered, and either not locked or not in cart
 
   const handleAddToCart = async () => {
     if (!id) return;
@@ -225,7 +256,7 @@ export function MyDraftDetailPage() {
                   Ver en carrito
                 </Button>
               )}
-              {!isLocked && (
+              {canEdit && (
                 <Button
                   onClick={() => navigate(`/draft/${id}/edit`)}
                   variant="outline"
