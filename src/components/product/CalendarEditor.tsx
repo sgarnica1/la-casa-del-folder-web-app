@@ -18,6 +18,7 @@ interface CalendarEditorProps {
   year?: number;
   title?: string;
   onSlotClick?: (slotId: string) => void;
+  onFileReplace?: (slotId: string, file: File) => void;
   onTitleChange?: (title: string) => void;
   onTransformChange?: (slotId: string, transform: LayoutItem['transform']) => void;
   isLocked?: boolean;
@@ -124,6 +125,7 @@ export function CalendarEditor({
   year = 2026,
   title: _title,
   onSlotClick,
+  onFileReplace,
   onTitleChange: _onTitleChange,
   onTransformChange,
   isLocked = false,
@@ -762,9 +764,24 @@ export function CalendarEditor({
               initialTransform={initialTransform}
               onSave={(transform) => handleSaveTransform(editingSlotId!, transform)}
               onCancel={() => setEditingSlotId(null)}
-              onReplace={() => {
-                setEditingSlotId(null);
-                onSlotClick?.(editingSlotId!);
+              onReplace={(file) => {
+                // Capture the slotId before closing the modal
+                const slotIdToReplace = editingSlotId;
+                if (slotIdToReplace) {
+                  // Close the photo editor modal first
+                  setEditingSlotId(null);
+                  // If onFileReplace is provided, use it to handle the file directly
+                  // Otherwise, fall back to onSlotClick which will trigger file input
+                  if (onFileReplace) {
+                    onFileReplace(slotIdToReplace, file);
+                  } else if (onSlotClick) {
+                    // Fallback: trigger the file input (but file is already selected, so this won't work)
+                    // This is a workaround - ideally onFileReplace should always be provided
+                    setTimeout(() => {
+                      onSlotClick(slotIdToReplace);
+                    }, 100);
+                  }
+                }
               }}
             />
           </DialogContent>
