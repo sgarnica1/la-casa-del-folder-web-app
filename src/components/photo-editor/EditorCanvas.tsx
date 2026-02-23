@@ -34,7 +34,14 @@ export function EditorCanvas({
   const [displayDimensions, setDisplayDimensions] = useState({ width: 600, height: 400 });
 
   const minScale = useRef(1);
+  const previousMinScale = useRef(1);
+  const onTransformChangeRef = useRef(onTransformChange);
   const maxScale = 3;
+
+  // Keep the callback ref up to date
+  useEffect(() => {
+    onTransformChangeRef.current = onTransformChange;
+  }, [onTransformChange]);
 
   // Observe the canvas's own rendered size — no feedback loop
   useEffect(() => {
@@ -44,7 +51,6 @@ export function EditorCanvas({
       if (entry) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0) {
-          console.log('[EditorCanvas] Canvas self-observed size:', { width, height, aspectRatio: width / height });
           setDisplayDimensions({ width, height });
         }
       }
@@ -77,14 +83,23 @@ export function EditorCanvas({
       fitScale = cropHeight / rotatedHeight;
     }
 
-    // Allow scale between fitScale (minimum) and maxScale
+    // Store previous minimum scale to detect when it changes
+    const prevMinScale = previousMinScale.current;
+
+    // Update the minimum scale reference
     minScale.current = fitScale;
 
-    // Only enforce minimum if scale is below fit scale
-    if (transform.scale < fitScale) {
-      onTransformChange({ scale: fitScale });
+    // Only enforce minimum scale when the minimum scale itself changes (e.g., after rotation)
+    // NOT when the user is actively changing the scale via zoom buttons
+    // This prevents the effect from reverting user zoom/rotate actions
+    if (Math.abs(fitScale - prevMinScale) > 0.001 && transform.scale < fitScale) {
+      onTransformChangeRef.current({ scale: fitScale });
     }
-  }, [transform.originalWidth, transform.originalHeight, transform.rotation, transform.scale, cropWidth, cropHeight, onTransformChange]);
+
+    // Update previous minimum scale for next comparison
+    previousMinScale.current = fitScale;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transform.originalWidth, transform.originalHeight, transform.rotation, cropWidth, cropHeight]);
 
   const constrainPosition = useCallback((x: number, y: number, scale: number) => {
     const rotationRad = (transform.rotation * Math.PI) / 180;
@@ -209,7 +224,7 @@ export function EditorCanvas({
       const constrained = constrainPosition(transform.offsetX, transform.offsetY, newScale);
       onTransformChange({ scale: newScale, offsetX: constrained.x, offsetY: constrained.y });
     }
-  }, [transform.scale, transform.offsetX, transform.offsetY, constrainPosition, onTransformChange]);
+  }, [transform.scale, transform.offsetX, transform.offsetY, constrainPosition, onTransformChange, maxScale]);
 
   const getTouchDistance = useCallback((touches: React.TouchList) => {
     if (touches.length < 2) return 0;

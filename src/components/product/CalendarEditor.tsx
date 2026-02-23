@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { MoreVertical, Edit } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { Dialog, DialogContent } from '@/components/ui';
@@ -720,6 +720,19 @@ export function CalendarEditor({
   const editingLayoutItem = editingSlotId ? layoutItems.find((item) => item.slotId === editingSlotId) : null;
   const editingDimensions = editingImage ? imageDimensions.get(editingImage.id) : null;
 
+  // Memoize initialTransform to prevent unnecessary recalculations
+  const initialTransform = useMemo(() => {
+    if (!editingLayoutItem?.transform || !editingDimensions || !editingSlot) return undefined;
+    const converted = convertTransform(
+      editingLayoutItem.transform,
+      editingDimensions.width,
+      editingDimensions.height,
+      editingSlot.bounds.width,
+      editingSlot.bounds.height
+    );
+    return converted;
+  }, [editingLayoutItem?.transform, editingDimensions, editingSlot]);
+
   return (
     <>
       <div className="w-full space-y-8">
@@ -746,16 +759,7 @@ export function CalendarEditor({
               cropWidth={editingSlot.bounds.width}
               cropHeight={editingSlot.bounds.height}
               aspectRatio={3 / 2}
-              initialTransform={(() => {
-                const converted = convertTransform(
-                  editingLayoutItem?.transform,
-                  editingDimensions.width,
-                  editingDimensions.height,
-                  editingSlot.bounds.width,
-                  editingSlot.bounds.height
-                );
-                return converted;
-              })()}
+              initialTransform={initialTransform}
               onSave={(transform) => handleSaveTransform(editingSlotId!, transform)}
               onCancel={() => setEditingSlotId(null)}
               onReplace={() => {

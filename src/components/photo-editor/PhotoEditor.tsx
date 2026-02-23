@@ -36,13 +36,26 @@ export function PhotoEditor({
   onDelete,
 }: PhotoEditorProps) {
   const [transform, setTransform] = useState<PhotoEditorTransform>(() => {
-    const imgAspect = originalWidth / originalHeight;
-    const cropAspect = cropWidth / cropHeight;
-    let initialScale = 1;
-    if (imgAspect > cropAspect) {
-      initialScale = cropHeight / originalHeight;
+    // Use the same calculation as handleFill to match the draft preview
+    // Calculate using effective 3:2 frame dimensions (matching CalendarEditor preview)
+    const targetAR = 3 / 2;
+    const cropAR = cropWidth / cropHeight;
+    let effectiveCropW: number, effectiveCropH: number;
+    if (cropAR > targetAR) {
+      effectiveCropW = cropWidth;
+      effectiveCropH = cropWidth / targetAR;
     } else {
-      initialScale = cropWidth / originalWidth;
+      effectiveCropH = cropHeight;
+      effectiveCropW = cropHeight * targetAR;
+    }
+
+    const imgAspect = originalWidth / originalHeight;
+    const frameAspect = effectiveCropW / effectiveCropH;
+    let initialScale = 1;
+    if (imgAspect > frameAspect) {
+      initialScale = effectiveCropH / originalHeight;
+    } else {
+      initialScale = effectiveCropW / originalWidth;
     }
 
     const initialState = {
@@ -63,9 +76,19 @@ export function PhotoEditor({
   const [showGrid, setShowGrid] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasAppliedInitialTransform = useRef(false);
+  const lastImageId = useRef<string | null>(null);
 
+  // Only apply initialTransform once when imageId changes, not on every initialTransform prop change
   useEffect(() => {
-    if (initialTransform) {
+    // Reset flag when imageId changes
+    if (lastImageId.current !== imageId) {
+      hasAppliedInitialTransform.current = false;
+      lastImageId.current = imageId;
+    }
+
+    // Only apply initialTransform once per image
+    if (initialTransform && !hasAppliedInitialTransform.current) {
       setTransform((prev) => {
         const updatedTransform = {
           ...prev,
@@ -76,6 +99,7 @@ export function PhotoEditor({
           cropWidth,
           cropHeight,
         };
+        hasAppliedInitialTransform.current = true;
         return updatedTransform;
       });
     }

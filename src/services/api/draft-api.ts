@@ -15,16 +15,16 @@ export class DraftApi extends BaseApiClient {
         productId: string;
         templateId: string;
         title: string | null;
-        layoutItems: Array<{ 
-          id: string; 
-          slotId: string; 
+        layoutItems: Array<{
+          id: string;
+          slotId: string;
           imageId: string | null;
           transform?: { x: number; y: number; scale: number; rotation: number } | null;
         }>;
         createdAt: string;
         updatedAt: string;
       }>(response);
-      
+
       const mappedDraft = {
         id: data.id,
         status: data.status as 'draft' | 'locked' | 'ordered',
@@ -51,12 +51,6 @@ export class DraftApi extends BaseApiClient {
   async createDraft(productId: string, templateId: string): Promise<Draft> {
     try {
       const headers = await this.getAuthHeaders() as Record<string, string>;
-      const hasAuth = !!headers['Authorization'];
-      console.log('[ApiClient] Creating draft', { hasAuth, productId, templateId });
-
-      if (!hasAuth) {
-        console.warn('[ApiClient] No authorization token available');
-      }
 
       const response = await fetch(`${this.baseUrl}/drafts`, {
         method: 'POST',
@@ -64,10 +58,8 @@ export class DraftApi extends BaseApiClient {
         body: JSON.stringify({ productId, templateId }),
       });
 
-      console.log('[ApiClient] Draft creation response:', response.status, response.statusText);
       return handleResponse<Draft>(response);
     } catch (error) {
-      console.error('[ApiClient] Error in createDraft:', error);
       return handleFetchError(error);
     }
   }
@@ -121,9 +113,9 @@ export class DraftApi extends BaseApiClient {
         id: string;
         title: string | undefined;
         state: string;
-        layoutItems: Array<{ 
-          id: string; 
-          slotId: string; 
+        layoutItems: Array<{
+          id: string;
+          slotId: string;
           imageId: string | null;
           transform?: { x: number; y: number; scale: number; rotation: number } | null;
         }>;
@@ -150,6 +142,21 @@ export class DraftApi extends BaseApiClient {
 
 
       return mappedDraft;
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async deleteMyDraft(draftId: string): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/user/me/drafts/${draftId}`, {
+        method: 'DELETE',
+        headers,
+      });
+      if (!response.ok) {
+        await handleResponse<unknown>(response);
+      }
     } catch (error) {
       return handleFetchError(error);
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Image, Lock, MoreVertical, Edit, Eye } from 'lucide-react';
+import { Image, Lock, MoreVertical, Edit, Eye, Trash2 } from 'lucide-react';
 import { Button, Card, CardContent, Skeleton } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
@@ -47,9 +47,11 @@ function formatDate(dateString: string): string {
 export function MyDraftsPage() {
   const navigate = useNavigate();
   const { waitForToken, isLoaded, isSignedIn } = useWaitForToken();
-  const { cart } = useCart();
+  const { cart, refreshCart } = useCart();
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [menuOpenDraftId, setMenuOpenDraftId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -96,12 +98,48 @@ export function MyDraftsPage() {
     loadDrafts();
   }, [isLoaded, isSignedIn, waitForToken, navigate, toast]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuOpenDraftId) {
+        const target = event.target as Node;
+        if (!target || !(target instanceof Element) || !target.closest('.absolute.top-3.right-3')) {
+          setMenuOpenDraftId(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpenDraftId]);
+
   const handleViewDraft = (draftId: string, state: string) => {
     if (state === 'editing' || state === 'draft') {
       navigate(`/draft/${draftId}/edit`, { state: { from: '/account/my-designs' } });
     } else {
       navigate(`/account/my-designs/${draftId}`);
     }
+  };
+
+  const handleDeleteDraft = async (draftId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setMenuOpenDraftId(null);
+    setIsDeleting(draftId);
+
+    try {
+      await apiClient.drafts.deleteMyDraft(draftId);
+      setDrafts(prev => prev.filter(d => d.id !== draftId));
+      await refreshCart();
+      toast.success('Diseño eliminado');
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleMenuToggle = (draftId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setMenuOpenDraftId(prev => prev === draftId ? null : draftId);
   };
 
   if (isLoading) {
@@ -179,16 +217,38 @@ export function MyDraftsPage() {
                 <CardContent className="p-0">
                   <div className="relative">
                     {/* 3-dot menu */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toast.info('Funcionalidad próximamente disponible');
-                      }}
-                      className="absolute top-3 right-3 z-10 p-1.5 rounded-lg bg-white/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-white shadow-sm cursor-pointer"
-                      aria-label="Más opciones"
-                    >
-                      <MoreVertical className="h-4 w-4 text-gray-600" />
-                    </button>
+                    <div className="absolute top-3 right-3 z-10">
+                      <button
+                        onClick={(e) => handleMenuToggle(draft.id, e)}
+                        className="p-1.5 rounded-lg bg-white/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-white shadow-sm cursor-pointer"
+                        aria-label="Más opciones"
+                      >
+                        <MoreVertical className="h-4 w-4 text-gray-600" />
+                      </button>
+                      {menuOpenDraftId === draft.id && (
+                        <div className="absolute right-0 top-10 bg-white rounded-md shadow-lg border py-1 min-w-[160px] z-20">
+                          {(() => {
+                            const isOrdered = draft.state === 'ordered';
+                            const isInCart = cart?.items.some(item => item.draftId === draft.id) ?? false;
+                            const canDelete = !isOrdered && !isInCart;
+
+                            if (canDelete) {
+                              return (
+                                <button
+                                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-red-600"
+                                  onClick={(e) => handleDeleteDraft(draft.id, e)}
+                                  disabled={isDeleting === draft.id}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  {isDeleting === draft.id ? 'Eliminando...' : 'Eliminar'}
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Image container with 16:9 ratio */}
                     <div className="relative w-full aspect-video overflow-hidden rounded-t-2xl bg-muted">
