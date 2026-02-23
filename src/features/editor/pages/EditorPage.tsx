@@ -278,6 +278,69 @@ export function EditorPage() {
     fileInputRef.current?.click();
   }, []);
 
+  const handleFileReplace = useCallback(async (slotId: string, file: File) => {
+    if (!draft || !draftId) {
+      return;
+    }
+
+    // Create preview URL and show loading state
+    const previewUrl = URL.createObjectURL(file);
+    setUploadingSlots((prev) => {
+      const updated = new Map(prev);
+      updated.set(slotId, { previewUrl });
+      return updated;
+    });
+
+    // Mark that we're replacing an image to prevent auto-assign
+    isReplacingImageRef.current = true;
+
+    try {
+      // Upload the image
+      const result = await apiClient.assets.uploadImage(file);
+      const newImage = { id: result.id, url: result.url };
+
+      // Add to uploaded images context first
+      addImages([newImage]);
+
+      // Find the layout item for this slot (need to use the same ID format as backend)
+      const existingItem = draft.layoutItems.find((item) => item.slotId === slotId);
+
+      if (!existingItem) {
+        throw new Error('Layout item not found for this slot');
+      }
+
+      // Update the draft with the new image - ensure we use the exact ID from existingItem
+      const updatedItems: LayoutItem[] = draft.layoutItems.map((item) =>
+        item.id === existingItem.id ? { ...item, imageId: newImage.id } : item
+      );
+
+      setIsSaving(true);
+      const updatedDraft = await apiClient.drafts.updateDraft(draftId, {
+        layoutItems: updatedItems,
+      });
+
+      // Update draft state with the new layout items
+      setDraft(updatedDraft);
+      toastRef.current.success('Imagen reemplazada exitosamente');
+    } catch (err) {
+      toastRef.current.error(err);
+    } finally {
+      // Clean up
+      URL.revokeObjectURL(previewUrl);
+      setUploadingSlots((prev) => {
+        const updated = new Map(prev);
+        updated.delete(slotId);
+        return updated;
+      });
+      setIsSaving(false);
+
+      // Allow auto-assign again after a short delay
+      setTimeout(() => {
+        isReplacingImageRef.current = false;
+      }, 1000);
+    }
+  }, [draft, draftId, addImages]);
+
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     const slotId = currentReplacingSlotId.current;
@@ -610,6 +673,7 @@ export function EditorPage() {
             year={2026}
             title={titleValue}
             onSlotClick={handleSlotClick}
+            onFileReplace={handleFileReplace}
             onTitleChange={handleTitleChange}
             onTransformChange={handleTransformChange}
             uploadingSlots={uploadingSlots}

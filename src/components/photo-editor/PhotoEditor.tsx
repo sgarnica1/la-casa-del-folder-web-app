@@ -17,7 +17,7 @@ interface PhotoEditorProps {
   initialTransform?: Partial<PhotoEditorTransform>;
   onSave: (transform: PhotoEditorTransform) => void;
   onCancel: () => void;
-  onReplace?: () => void;
+  onReplace?: (file: File) => void;
   onDelete?: () => void;
 }
 
@@ -436,12 +436,10 @@ export function PhotoEditor({
         accept="image/*"
         className="hidden"
         onChange={(e) => {
-          if (e.target.files?.[0]) {
-            // If onReplace is provided, call it (it will handle the upload)
-            // Otherwise, the file input is just for triggering the upload UI
-            if (onReplace) {
-              onReplace();
-            }
+          const file = e.target.files?.[0];
+          if (file && onReplace) {
+            // Pass the file to the parent component to handle upload
+            onReplace(file);
             // Reset the input so the same file can be selected again
             e.target.value = '';
           }
