@@ -191,10 +191,22 @@ export function MyOrderDetailPage() {
 
   const layoutItems: LayoutItem[] = snapshot.layoutItems.map((item: DesignSnapshotLayoutItem) => {
     const imageId = item.images[0]?.uploadedImageId || item.images[0]?.cloudinaryPublicId || undefined;
+    // Map transformJson to transform format expected by CalendarEditor
+    let transform: LayoutItem['transform'] | undefined;
+    if (item.transformJson) {
+      const t = item.transformJson as { x?: number; y?: number; scale?: number; rotation?: number };
+      transform = {
+        x: t.x ?? 0,
+        y: t.y ?? 0,
+        scale: t.scale ?? 1,
+        rotation: t.rotation ?? 0,
+      };
+    }
     return {
       id: `item-${item.layoutIndex}`,
       slotId: `slot-${item.layoutIndex}`,
       imageId,
+      transform,
     };
   });
 

@@ -1,22 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import JSZip from 'jszip';
-import { Download, Package, CheckCircle, AlertTriangle } from 'lucide-react';
-import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
+import { Download, Package, CheckCircle, X, RotateCcw, Truck, CheckCircle2, Receipt } from 'lucide-react';
+import { Skeleton, Button } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { OrderActivityTimeline } from '../components/OrderActivityTimeline';
-import type { OrderDetail, DesignSnapshotLayoutItem, OrderActivity } from '@/types';
+import { OrderStatusTransitionDialog } from '../components/OrderStatusTransitionDialog';
+import { CalendarEditor } from '@/components/product/CalendarEditor';
+import type { OrderDetail, DesignSnapshotLayoutItem, OrderActivity, Layout, LayoutItem, OrderStatus, OrderStatusTransition } from '@/types';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-const ORDER_STATUS_LABELS: Record<string, string> = {
+const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: 'Nuevo',
   in_production: 'En Producción',
+  ready: 'Listo',
   shipped: 'Enviado',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+  refunded: 'Reembolsado',
 };
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -116,7 +122,7 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
   };
 
   const label = type === 'order'
-    ? ORDER_STATUS_LABELS[status] || status
+    ? ORDER_STATUS_LABELS[status as OrderStatus] || status
     : PAYMENT_STATUS_LABELS[status] || status;
 
   return (
@@ -130,13 +136,15 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [layout, setLayout] = useState<Layout | null>(null);
   const [imageMap, setImageMap] = useState<Map<string, string>>(new Map());
   const [activities, setActivities] = useState<OrderActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState<'in_production' | 'shipped' | null>(null);
+  const [pendingTransition, setPendingTransition] = useState<OrderStatusTransition | null>(null);
+  const [availableTransitions, setAvailableTransitions] = useState<OrderStatusTransition[]>([]);
   const toast = useToast();
 
   useEffect(() => {
@@ -145,17 +153,20 @@ export function OrderDetailPage() {
     const loadOrder = async () => {
       setIsLoading(true);
       try {
-        const [data, activitiesData] = await Promise.all([
+        const [data, activitiesData, transitionsData] = await Promise.all([
           apiClient.orders.getOrderById(id),
           apiClient.orders.getOrderActivities(id),
+          apiClient.orders.getAvailableStatusTransitions(id),
         ]);
         setOrder(data);
         setActivities(activitiesData);
+        setAvailableTransitions(transitionsData.transitions);
 
         const imageMap = new Map<string, string>();
         data.items.forEach((item) => {
           const snapshot = item.designSnapshotJson as {
             layoutItems?: DesignSnapshotLayoutItem[];
+            templateId?: string | null;
           } | null;
           if (snapshot?.layoutItems) {
             snapshot.layoutItems.forEach((layoutItem) => {
@@ -168,6 +179,17 @@ export function OrderDetailPage() {
           }
         });
         setImageMap(imageMap);
+
+        // Load layout for calendar view
+        const firstItem = data.items[0];
+        if (firstItem) {
+          const snapshot = firstItem.designSnapshotJson as {
+            templateId?: string | null;
+          } | null;
+          const templateId = snapshot?.templateId || 'calendar-template';
+          const layoutData = await apiClient.layouts.getLayout(templateId);
+          setLayout(layoutData);
+        }
       } catch (err) {
         toast.error(err);
       } finally {
@@ -178,37 +200,72 @@ export function OrderDetailPage() {
     loadOrder();
   }, [id, toast]);
 
-  const handleStatusChangeClick = (newStatus: 'in_production' | 'shipped') => {
-    setPendingStatus(newStatus);
+  const handleTransitionClick = (transition: OrderStatusTransition) => {
+    setPendingTransition(transition);
     setShowConfirmDialog(true);
   };
 
-  const handleConfirmStatusChange = async () => {
-    if (!order || !id || !pendingStatus) return;
+  const handleConfirmStatusChange = async (note?: string) => {
+    if (!order || !id || !pendingTransition) return;
 
     setShowConfirmDialog(false);
     setIsUpdatingStatus(true);
     try {
-      await apiClient.orders.updateOrderStatus(id, pendingStatus);
-      setOrder({ ...order, orderStatus: pendingStatus });
+      await apiClient.orders.updateOrderStatus(id, pendingTransition.targetStatus, note);
 
-      // Reload activities to show the new status change
-      const activitiesData = await apiClient.orders.getOrderActivities(id);
+      // Reload order and activities to show the new status change
+      const [orderData, activitiesData, transitionsData] = await Promise.all([
+        apiClient.orders.getOrderById(id),
+        apiClient.orders.getOrderActivities(id),
+        apiClient.orders.getAvailableStatusTransitions(id),
+      ]);
+      setOrder(orderData);
       setActivities(activitiesData);
+      setAvailableTransitions(transitionsData.transitions);
 
-      toast.success(`Estado actualizado a ${ORDER_STATUS_LABELS[pendingStatus]}`);
-      setPendingStatus(null);
+      toast.success(`Estado actualizado a ${pendingTransition.label}`);
+      setPendingTransition(null);
     } catch (err) {
       toast.error(err);
-      setPendingStatus(null);
+      setPendingTransition(null);
     } finally {
       setIsUpdatingStatus(false);
     }
   };
 
-  const handleCancelStatusChange = () => {
-    setShowConfirmDialog(false);
-    setPendingStatus(null);
+
+  const getTransitionIcon = (targetStatus: OrderStatus) => {
+    switch (targetStatus) {
+      case 'new':
+        return <RotateCcw className="h-4 w-4" />;
+      case 'in_production':
+        return <Package className="h-4 w-4" />;
+      case 'ready':
+        return <CheckCircle2 className="h-4 w-4" />;
+      case 'shipped':
+        return <Truck className="h-4 w-4" />;
+      case 'delivered':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'cancelled':
+        return <X className="h-4 w-4" />;
+      case 'refunded':
+        return <Receipt className="h-4 w-4" />;
+      default:
+        return null;
+    }
+  };
+
+  const getTransitionButtonColor = (targetStatus: OrderStatus) => {
+    switch (targetStatus) {
+      case 'cancelled':
+        return 'bg-red-600 hover:bg-red-700';
+      case 'refunded':
+        return 'bg-orange-600 hover:bg-orange-700';
+      case 'delivered':
+        return 'bg-emerald-600 hover:bg-emerald-700';
+      default:
+        return 'bg-blue-600 hover:bg-blue-700';
+    }
   };
 
   const handleDownloadAllImages = async () => {
@@ -261,6 +318,46 @@ export function OrderDetailPage() {
   const subtotal = order.items.reduce((sum, item) => sum + parseFloat(item.priceSnapshot) * item.quantity, 0);
   const total = parseFloat(order.totalAmount);
 
+  // Prepare calendar editor data from first item
+  const firstItem = order.items[0];
+  const calendarData = firstItem && layout ? (() => {
+    const snapshot = firstItem.designSnapshotJson as {
+      layoutItems?: DesignSnapshotLayoutItem[];
+      title?: string | null;
+    } | null;
+    if (!snapshot?.layoutItems) return null;
+
+    const layoutItems: LayoutItem[] = snapshot.layoutItems.map((item: DesignSnapshotLayoutItem) => {
+      const imageId = item.images[0]?.uploadedImageId || item.images[0]?.cloudinaryPublicId || undefined;
+      // Map transformJson to transform format expected by CalendarEditor
+      let transform: LayoutItem['transform'] | undefined;
+      if (item.transformJson) {
+        const t = item.transformJson as { x?: number; y?: number; scale?: number; rotation?: number };
+        transform = {
+          x: t.x ?? 0,
+          y: t.y ?? 0,
+          scale: t.scale ?? 1,
+          rotation: t.rotation ?? 0,
+        };
+      }
+      return {
+        id: `item-${item.layoutIndex}`,
+        slotId: `slot-${item.layoutIndex}`,
+        imageId,
+        transform,
+      };
+    });
+
+    const images = snapshot.layoutItems
+      .flatMap((item: DesignSnapshotLayoutItem) => item.images)
+      .map((img) => ({
+        id: img.uploadedImageId || img.cloudinaryPublicId,
+        url: imageMap.get(img.cloudinaryPublicId) || img.secureUrl,
+      }));
+
+    return { layoutItems, images, title: snapshot.title };
+  })() : null;
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* Top Header Section */}
@@ -287,26 +384,17 @@ export function OrderDetailPage() {
               <StatusBadge status={order.orderStatus} type="order" />
               <StatusBadge status={order.paymentStatus} type="payment" />
             </div>
-            {order.orderStatus === 'new' && (
+            {availableTransitions.map((transition) => (
               <Button
-                onClick={() => handleStatusChangeClick('in_production')}
+                key={transition.targetStatus}
+                onClick={() => handleTransitionClick(transition)}
                 disabled={isUpdatingStatus}
-                className="h-10 px-4 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                className={`h-10 px-4 rounded-xl font-semibold text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${getTransitionButtonColor(transition.targetStatus)}`}
               >
-                <Package className="h-4 w-4" />
-                En Producción
+                {getTransitionIcon(transition.targetStatus)}
+                {transition.label}
               </Button>
-            )}
-            {order.orderStatus === 'in_production' && (
-              <Button
-                onClick={() => handleStatusChangeClick('shipped')}
-                disabled={isUpdatingStatus}
-                className="h-10 px-4 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-180 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-              >
-                <CheckCircle className="h-4 w-4" />
-                Enviado
-              </Button>
-            )}
+            ))}
             <Button
               onClick={handleDownloadAllImages}
               disabled={isDownloading}
@@ -385,6 +473,22 @@ export function OrderDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Calendar Preview */}
+          {calendarData && layout && (
+            <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Vista Previa del Calendario</h2>
+              <CalendarEditor
+                layout={layout}
+                layoutItems={calendarData.layoutItems}
+                images={calendarData.images}
+                year={2026}
+                title={calendarData.title || undefined}
+                isLocked={true}
+                layoutMode="grid"
+              />
+            </div>
+          )}
 
           {/* Images to Download */}
           <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
@@ -497,60 +601,19 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
-      <Dialog open={showConfirmDialog} onOpenChange={(open) => {
-        if (!open) {
-          handleCancelStatusChange();
-        }
-      }}>
-        <DialogContent className="sm:max-w-md rounded-2xl border-gray-200 shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
-          <DialogHeader>
-            <div className="flex items-start gap-3 mb-2">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <DialogTitle className="text-xl font-semibold text-gray-900 text-left">
-                  Confirmar cambio de estado
-                </DialogTitle>
-              </div>
-            </div>
-            <DialogDescription className="text-left pt-2">
-              <p className="text-sm text-gray-600 mb-4">
-                ¿Estás seguro de que deseas cambiar el estado del pedido a{' '}
-                <strong className="text-gray-900 font-semibold">{pendingStatus ? ORDER_STATUS_LABELS[pendingStatus] : ''}</strong>?
-              </p>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-sm text-red-800 font-semibold mb-1">
-                  Esta acción no se puede deshacer
-                </p>
-                <p className="text-xs text-red-700">
-                  El cambio de estado será permanente y se registrará en el historial del pedido.
-                </p>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-0 sm:justify-end pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancelStatusChange}
-              disabled={isUpdatingStatus}
-              className="w-full sm:w-auto rounded-xl border-gray-300 hover:bg-gray-50"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleConfirmStatusChange}
-              disabled={isUpdatingStatus}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50 shadow-sm hover:shadow-md transition-all duration-180"
-            >
-              {isUpdatingStatus ? 'Actualizando...' : 'Confirmar cambio'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Status Transition Dialog */}
+      {pendingTransition && (
+        <OrderStatusTransitionDialog
+          open={showConfirmDialog}
+          onOpenChange={setShowConfirmDialog}
+          currentStatus={order.orderStatus}
+          targetStatus={pendingTransition.targetStatus}
+          targetLabel={pendingTransition.label}
+          requiresNote={pendingTransition.requiresNote}
+          onConfirm={handleConfirmStatusChange}
+          isUpdating={isUpdatingStatus}
+        />
+      )}
     </div>
   );
 }

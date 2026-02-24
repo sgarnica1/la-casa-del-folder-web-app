@@ -40,4 +40,18 @@ export class PaymentApi extends BaseApiClient {
       return handleFetchError(error);
     }
   }
+
+  async fakePayment(orderId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/payments/fake`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      return handleResponse<{ success: boolean; message: string }>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
 }
