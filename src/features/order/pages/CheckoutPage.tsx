@@ -40,6 +40,7 @@ export function CheckoutPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const preferenceCreationRef = useRef<boolean>(false);
   const lastFormStateRef = useRef<boolean>(false);
+  const createdAddressIdRef = useRef<string | null>(null);
   const toast = useToast();
   useApiClient();
 
@@ -274,8 +275,14 @@ export function CheckoutPage() {
           return;
         }
 
-        const createdAddress = await apiClient.user.createAddress(newAddress);
-        shippingAddressId = createdAddress.id;
+        // Only create address if we haven't already created one for this form session
+        if (createdAddressIdRef.current) {
+          shippingAddressId = createdAddressIdRef.current;
+        } else {
+          const createdAddress = await apiClient.user.createAddress(newAddress);
+          shippingAddressId = createdAddress.id;
+          createdAddressIdRef.current = createdAddress.id;
+        }
       } else {
         toast.error('Por favor selecciona o crea una dirección de envío');
         setIsSubmitting(false);
@@ -347,6 +354,11 @@ export function CheckoutPage() {
       setOrderId(null);
       lastFormStateRef.current = false;
       preferenceCreationRef.current = false;
+      // Reset created address ID if user switches back to new address form or changes address fields
+      if (showNewAddressForm) {
+        // Only reset if address fields actually changed (not just on mount)
+        createdAddressIdRef.current = null;
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerData.firstName, customerData.lastName, customerData.phone, selectedAddressId, showNewAddressForm, newAddress.addressLine1, newAddress.addressLine2, newAddress.city, newAddress.state, newAddress.postalCode, newAddress.country]);
@@ -441,25 +453,25 @@ export function CheckoutPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Nombre <span className="text-red-500">*</span>
                       </label>
-                        <Input
-                          value={customerData.firstName}
-                          onChange={(e) => setCustomerData({ ...customerData, firstName: e.target.value })}
-                          required
-                          disabled={isSubmitting}
-                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
-                        />
+                      <Input
+                        value={customerData.firstName}
+                        onChange={(e) => setCustomerData({ ...customerData, firstName: e.target.value })}
+                        required
+                        disabled={isSubmitting}
+                        className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Apellido <span className="text-red-500">*</span>
                       </label>
-                        <Input
-                          value={customerData.lastName}
-                          onChange={(e) => setCustomerData({ ...customerData, lastName: e.target.value })}
-                          required
-                          disabled={isSubmitting}
-                          className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
-                        />
+                      <Input
+                        value={customerData.lastName}
+                        onChange={(e) => setCustomerData({ ...customerData, lastName: e.target.value })}
+                        required
+                        disabled={isSubmitting}
+                        className="rounded-xl h-11 border-gray-300 focus:border-gray-900 focus:ring-gray-900 transition-colors placeholder:text-gray-400 placeholder:opacity-60"
+                      />
                     </div>
                   </div>
                   <div>
@@ -541,6 +553,7 @@ export function CheckoutPage() {
                         onClick={() => {
                           setShowNewAddressForm(true);
                           setSelectedAddressId(null);
+                          createdAddressIdRef.current = null; // Reset when switching to new address form
                         }}
                         disabled={isSubmitting}
                         className="rounded-xl h-10"
@@ -628,6 +641,7 @@ export function CheckoutPage() {
                             if (addresses.length > 0) {
                               setSelectedAddressId(addresses[0].id);
                             }
+                            createdAddressIdRef.current = null; // Reset when switching back to existing addresses
                           }}
                           disabled={isSubmitting}
                           className="rounded-xl h-10"
@@ -711,7 +725,35 @@ export function CheckoutPage() {
                         <Skeleton className="h-12 w-full" />
                       </div>
                     ) : walletComponent ? (
-                      walletComponent
+                      <>
+                        {import.meta.env.DEV && orderId && (
+                          <div className="border-2 border-amber-300 bg-amber-50 rounded-xl p-4 mb-4">
+                            <p className="text-xs font-semibold text-amber-800 mb-2">MODO DESARROLLO</p>
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                if (!orderId) return;
+                                setIsSubmitting(true);
+                                try {
+                                  await apiClient.payments.fakePayment(orderId);
+                                  toast.success('Pago simulado exitosamente');
+                                  await refreshCart();
+                                  navigate(`/payment/success?orderId=${orderId}`);
+                                } catch (err) {
+                                  toast.error(err);
+                                } finally {
+                                  setIsSubmitting(false);
+                                }
+                              }}
+                              disabled={isSubmitting}
+                              className="w-full bg-amber-600 hover:bg-amber-700 text-white rounded-xl h-11 font-semibold"
+                            >
+                              {isSubmitting ? 'Procesando...' : '💳 Simular Pago'}
+                            </Button>
+                          </div>
+                        )}
+                        {walletComponent}
+                      </>
                     ) : (
                       <div className="opacity-50 pointer-events-none">
                         <div id="walletBrick_container_disabled">

@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import JSZip from 'jszip';
 import { Download, Package, CheckCircle, AlertTriangle } from 'lucide-react';
-import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui';
+import { Skeleton, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { OrderActivityTimeline } from '../components/OrderActivityTimeline';
-import type { OrderDetail, DesignSnapshotLayoutItem, OrderActivity } from '@/types';
+import { CalendarEditor } from '@/components/product/CalendarEditor';
+import type { OrderDetail, DesignSnapshotLayoutItem, OrderActivity, Layout, LayoutItem } from '@/types';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -130,6 +131,7 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [layout, setLayout] = useState<Layout | null>(null);
   const [imageMap, setImageMap] = useState<Map<string, string>>(new Map());
   const [activities, setActivities] = useState<OrderActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -156,6 +158,7 @@ export function OrderDetailPage() {
         data.items.forEach((item) => {
           const snapshot = item.designSnapshotJson as {
             layoutItems?: DesignSnapshotLayoutItem[];
+            templateId?: string | null;
           } | null;
           if (snapshot?.layoutItems) {
             snapshot.layoutItems.forEach((layoutItem) => {
@@ -168,6 +171,17 @@ export function OrderDetailPage() {
           }
         });
         setImageMap(imageMap);
+
+        // Load layout for calendar view
+        const firstItem = data.items[0];
+        if (firstItem) {
+          const snapshot = firstItem.designSnapshotJson as {
+            templateId?: string | null;
+          } | null;
+          const templateId = snapshot?.templateId || 'calendar-template';
+          const layoutData = await apiClient.layouts.getLayout(templateId);
+          setLayout(layoutData);
+        }
       } catch (err) {
         toast.error(err);
       } finally {
@@ -260,6 +274,46 @@ export function OrderDetailPage() {
   // Calculate totals
   const subtotal = order.items.reduce((sum, item) => sum + parseFloat(item.priceSnapshot) * item.quantity, 0);
   const total = parseFloat(order.totalAmount);
+
+  // Prepare calendar editor data from first item
+  const firstItem = order.items[0];
+  const calendarData = firstItem && layout ? (() => {
+    const snapshot = firstItem.designSnapshotJson as {
+      layoutItems?: DesignSnapshotLayoutItem[];
+      title?: string | null;
+    } | null;
+    if (!snapshot?.layoutItems) return null;
+
+    const layoutItems: LayoutItem[] = snapshot.layoutItems.map((item: DesignSnapshotLayoutItem) => {
+      const imageId = item.images[0]?.uploadedImageId || item.images[0]?.cloudinaryPublicId || undefined;
+      // Map transformJson to transform format expected by CalendarEditor
+      let transform: LayoutItem['transform'] | undefined;
+      if (item.transformJson) {
+        const t = item.transformJson as { x?: number; y?: number; scale?: number; rotation?: number };
+        transform = {
+          x: t.x ?? 0,
+          y: t.y ?? 0,
+          scale: t.scale ?? 1,
+          rotation: t.rotation ?? 0,
+        };
+      }
+      return {
+        id: `item-${item.layoutIndex}`,
+        slotId: `slot-${item.layoutIndex}`,
+        imageId,
+        transform,
+      };
+    });
+
+    const images = snapshot.layoutItems
+      .flatMap((item: DesignSnapshotLayoutItem) => item.images)
+      .map((img) => ({
+        id: img.uploadedImageId || img.cloudinaryPublicId,
+        url: imageMap.get(img.cloudinaryPublicId) || img.secureUrl,
+      }));
+
+    return { layoutItems, images, title: snapshot.title };
+  })() : null;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -385,6 +439,22 @@ export function OrderDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Calendar Preview */}
+          {calendarData && layout && (
+            <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Vista Previa del Calendario</h2>
+              <CalendarEditor
+                layout={layout}
+                layoutItems={calendarData.layoutItems}
+                images={calendarData.images}
+                year={2026}
+                title={calendarData.title || undefined}
+                isLocked={true}
+                layoutMode="grid"
+              />
+            </div>
+          )}
 
           {/* Images to Download */}
           <div className="border border-gray-200/60 rounded-2xl p-6 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
@@ -515,7 +585,7 @@ export function OrderDetailPage() {
                 </DialogTitle>
               </div>
             </div>
-            <DialogDescription className="text-left pt-2">
+            <div className="text-left pt-2">
               <p className="text-sm text-gray-600 mb-4">
                 ¿Estás seguro de que deseas cambiar el estado del pedido a{' '}
                 <strong className="text-gray-900 font-semibold">{pendingStatus ? ORDER_STATUS_LABELS[pendingStatus] : ''}</strong>?
@@ -528,7 +598,7 @@ export function OrderDetailPage() {
                   El cambio de estado será permanente y se registrará en el historial del pedido.
                 </p>
               </div>
-            </DialogDescription>
+            </div>
           </DialogHeader>
           <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-0 sm:justify-end pt-4">
             <Button

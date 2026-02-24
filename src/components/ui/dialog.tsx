@@ -51,7 +51,7 @@ const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children, closeOnOu
         isAnimating ? "opacity-100" : "opacity-0"
       )} />
       <div className={cn(
-        "relative z-50 w-full h-full md:w-full md:max-w-6xl md:h-auto md:mx-4 transition-all duration-300 ease-out",
+        "relative z-50 w-full h-full md:w-auto md:max-w-md md:h-auto md:mx-4 transition-all duration-300 ease-out",
         isAnimating 
           ? "translate-y-0 md:translate-y-0 md:scale-100" 
           : "translate-y-full md:translate-y-4 md:scale-95"
