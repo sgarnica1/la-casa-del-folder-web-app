@@ -1,19 +1,41 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Copy, MoreVertical, Loader2 } from 'lucide-react';
-import { Skeleton, Button } from '@/components/ui';
+import { Skeleton, Button, FilterCombobox } from '@/components/ui';
 import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
-import type { Order } from '@/types';
+import type { Order, OrderStatus } from '@/types';
 
-type OrderStatusFilter = 'all' | 'new' | 'in_production' | 'shipped';
+type OrderStatusFilter = 'all' | OrderStatus;
 type PaymentStatusFilter = 'all' | 'paid' | 'pending' | 'failed';
 
-const ORDER_STATUS_LABELS: Record<string, string> = {
+const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: 'Nuevo',
   in_production: 'En Producción',
+  ready: 'Listo',
   shipped: 'Enviado',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+  refunded: 'Reembolsado',
 };
+
+const ORDER_STATUS_OPTIONS: Array<{ value: OrderStatusFilter; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'new', label: 'Nuevo' },
+  { value: 'in_production', label: 'En Producción' },
+  { value: 'ready', label: 'Listo' },
+  { value: 'shipped', label: 'Enviado' },
+  { value: 'delivered', label: 'Entregado' },
+  { value: 'cancelled', label: 'Cancelado' },
+  { value: 'refunded', label: 'Reembolsado' },
+];
+
+const PAYMENT_STATUS_OPTIONS: Array<{ value: PaymentStatusFilter; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'paid', label: 'Pagado' },
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'failed', label: 'Fallido' },
+];
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
   paid: 'Pagado',
@@ -28,9 +50,17 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
         case 'new':
           return 'bg-blue-50 text-blue-700';
         case 'in_production':
-          return 'bg-amber-50 text-amber-700';
+          return 'bg-purple-50 text-purple-700';
+        case 'ready':
+          return 'bg-cyan-50 text-cyan-700';
         case 'shipped':
+          return 'bg-green-50 text-green-700';
+        case 'delivered':
           return 'bg-emerald-50 text-emerald-700';
+        case 'cancelled':
+          return 'bg-red-50 text-red-700';
+        case 'refunded':
+          return 'bg-orange-50 text-orange-700';
         default:
           return 'bg-gray-50 text-gray-700';
       }
@@ -49,7 +79,7 @@ function StatusBadge({ status, type }: { status: string; type: 'order' | 'paymen
   };
 
   const label = type === 'order'
-    ? ORDER_STATUS_LABELS[status] || status
+    ? ORDER_STATUS_LABELS[status as OrderStatus] || status
     : PAYMENT_STATUS_LABELS[status] || status;
 
   return (
@@ -222,39 +252,33 @@ export function OrdersListPage() {
       </div>
 
       <div className="flex gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <label htmlFor="order-status" className="text-sm font-medium text-gray-700">
-            Estado del Pedido:
-          </label>
-          <select
-            id="order-status"
-            value={orderStatusFilter}
-            onChange={(e) => setOrderStatusFilter(e.target.value as OrderStatusFilter)}
-            className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-180"
-          >
-            <option value="all">Todos</option>
-            <option value="new">Nuevo</option>
-            <option value="in_production">En Producción</option>
-            <option value="shipped">Enviado</option>
-          </select>
-        </div>
+        <FilterCombobox
+          label="Estado del Pedido:"
+          items={ORDER_STATUS_OPTIONS}
+          value={ORDER_STATUS_OPTIONS.find((opt) => opt.value === orderStatusFilter)}
+          onValueChange={(value) => {
+            if (value && !Array.isArray(value)) {
+              setOrderStatusFilter(value.value);
+            }
+          }}
+          itemToStringValue={(item) => item.label}
+          placeholder="Seleccionar estado"
+          showClear
+        />
 
-        <div className="flex items-center gap-2">
-          <label htmlFor="payment-status" className="text-sm font-medium text-gray-700">
-            Estado del Pago:
-          </label>
-          <select
-            id="payment-status"
-            value={paymentStatusFilter}
-            onChange={(e) => setPaymentStatusFilter(e.target.value as PaymentStatusFilter)}
-            className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-180"
-          >
-            <option value="all">Todos</option>
-            <option value="paid">Pagado</option>
-            <option value="pending">Pendiente</option>
-            <option value="failed">Fallido</option>
-          </select>
-        </div>
+        <FilterCombobox
+          label="Estado del Pago:"
+          items={PAYMENT_STATUS_OPTIONS}
+          value={PAYMENT_STATUS_OPTIONS.find((opt) => opt.value === paymentStatusFilter)}
+          onValueChange={(value) => {
+            if (value && !Array.isArray(value)) {
+              setPaymentStatusFilter(value.value);
+            }
+          }}
+          itemToStringValue={(item) => item.label}
+          placeholder="Seleccionar estado"
+          showClear
+        />
       </div>
 
       {filteredOrders.length === 0 ? (
@@ -366,11 +390,10 @@ export function OrdersListPage() {
                         variant={page === pageNum ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
-                        className={`w-10 rounded-xl transition-all duration-180 ${
-                          page === pageNum
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
+                        className={`w-10 rounded-xl transition-all duration-180 ${page === pageNum
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
                       >
                         {pageNum}
                       </Button>

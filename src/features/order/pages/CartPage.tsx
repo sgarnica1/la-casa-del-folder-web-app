@@ -6,7 +6,7 @@ import { apiClient } from '@/services/api-client';
 import { useToast } from '@/hooks/useToast';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useCart } from '@/contexts/CartContext';
-import { Trash2, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, Image } from 'lucide-react';
 import type { CartItem } from '@/types/cart';
 import type { Draft } from '@/types';
 
@@ -23,6 +23,7 @@ export function CartPage() {
   const navigate = useNavigate();
   const { cart, isLoading, refreshCart } = useCart();
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [draftCoverUrls, setDraftCoverUrls] = useState<Record<string, string | null>>({});
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(true);
   const [isUpdating, setIsUpdating] = useState<Record<string, boolean>>({});
   const toast = useToast();
@@ -38,6 +39,14 @@ export function CartPage() {
       try {
         const uniqueDraftIds = [...new Set(cart.items.map(item => item.draftId))];
 
+        // Fetch all drafts with cover URLs
+        const allDrafts = await apiClient.drafts.getMyDrafts();
+        const coverUrlMap: Record<string, string | null> = {};
+        allDrafts.forEach(draft => {
+          coverUrlMap[draft.id] = draft.coverUrl || null;
+        });
+
+        // Fetch individual drafts for titles and other data
         const draftResults = await Promise.all(
           uniqueDraftIds.map(async (draftId) => {
             try {
@@ -51,6 +60,7 @@ export function CartPage() {
 
         const draftsMap = draftResults.reduce((acc, curr) => ({ ...acc, ...curr }), {});
         setDrafts(draftsMap);
+        setDraftCoverUrls(coverUrlMap);
       } catch (err) {
         toast.error(err);
       } finally {
@@ -207,6 +217,30 @@ export function CartPage() {
                 >
                   <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row gap-6">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-gray-200/60 bg-gray-50 flex-shrink-0">
+                        {draftCoverUrls[item.draftId] ? (
+                          <img
+                            src={draftCoverUrls[item.draftId]!}
+                            alt={draft?.title || 'Sin título'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent && !parent.querySelector('svg')) {
+                                const icon = document.createElement('div');
+                                icon.className = 'w-full h-full flex items-center justify-center';
+                                icon.innerHTML = '<svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                                parent.appendChild(icon);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Image className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1 space-y-3">
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-1">

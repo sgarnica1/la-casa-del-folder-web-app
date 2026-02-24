@@ -1,9 +1,11 @@
+export type OrderStatus = "new" | "in_production" | "ready" | "shipped" | "delivered" | "cancelled" | "refunded";
+
 export interface Order {
   id: string;
   userId: string;
   totalAmount: string;
   paymentStatus: "pending" | "paid" | "failed";
-  orderStatus: "new" | "in_production" | "shipped";
+  orderStatus: OrderStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,10 +73,20 @@ export interface DesignSnapshotImage {
 export enum OrderActivityType {
   ORDER_PLACED = "ORDER_PLACED",
   PAYMENT_CONFIRMED = "PAYMENT_CONFIRMED",
+  ORDER_IN_PRODUCTION = "ORDER_IN_PRODUCTION",
   ORDER_READY = "ORDER_READY",
   ORDER_SHIPPED = "ORDER_SHIPPED",
   ORDER_DELIVERED = "ORDER_DELIVERED",
   STATUS_CHANGED = "STATUS_CHANGED",
+  ORDER_CANCELLED = "ORDER_CANCELLED",
+  ORDER_REFUNDED = "ORDER_REFUNDED",
+}
+
+export interface OrderStatusTransition {
+  targetStatus: OrderStatus;
+  requiresNote: boolean;
+  requiresPaymentStatus?: "pending" | "paid" | "failed";
+  label: string;
 }
 
 export interface OrderActivity {
