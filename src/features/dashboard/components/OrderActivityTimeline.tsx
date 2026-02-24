@@ -1,5 +1,5 @@
-import { OrderActivity, OrderActivityType } from '@/types';
-import { CheckCircle, Package, Truck, CreditCard, Clock, AlertCircle } from 'lucide-react';
+import { OrderActivity, OrderActivityType, OrderStatus } from '@/types';
+import { CheckCircle, Package, Truck, CreditCard, Clock, AlertCircle, X, Receipt, Cog } from 'lucide-react';
 
 interface OrderActivityTimelineProps {
   activities: OrderActivity[];
@@ -15,6 +15,11 @@ const ACTIVITY_CONFIG: Record<OrderActivityType, { label: string; icon: React.Co
     label: 'Pago confirmado',
     icon: CreditCard,
     color: 'text-green-600 bg-green-50',
+  },
+  [OrderActivityType.ORDER_IN_PRODUCTION]: {
+    label: 'En Producción',
+    icon: Cog,
+    color: 'text-purple-600 bg-purple-50',
   },
   [OrderActivityType.ORDER_READY]: {
     label: 'Pedido listo',
@@ -36,12 +41,26 @@ const ACTIVITY_CONFIG: Record<OrderActivityType, { label: string; icon: React.Co
     icon: AlertCircle,
     color: 'text-gray-600 bg-gray-50',
   },
+  [OrderActivityType.ORDER_CANCELLED]: {
+    label: 'Pedido cancelado',
+    icon: X,
+    color: 'text-red-600 bg-red-50',
+  },
+  [OrderActivityType.ORDER_REFUNDED]: {
+    label: 'Pedido reembolsado',
+    icon: Receipt,
+    color: 'text-orange-600 bg-orange-50',
+  },
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<OrderStatus, string> = {
   new: 'Nuevo',
   in_production: 'En Producción',
+  ready: 'Listo',
   shipped: 'Enviado',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+  refunded: 'Reembolsado',
 };
 
 export function OrderActivityTimeline({ activities }: OrderActivityTimelineProps) {
@@ -54,15 +73,24 @@ export function OrderActivityTimeline({ activities }: OrderActivityTimelineProps
     );
   }
 
+  const reversedActivities = [...activities].reverse();
+
   return (
     <div className="border border-gray-200/60 rounded-2xl p-8 bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
       <h2 className="text-xl font-semibold text-gray-900 mb-6">Actividad del Pedido</h2>
       <div className="relative">
-        {/* Timeline line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" />
+        {/* Timeline line - connects all activities, stops at the last one */}
+        {reversedActivities.length > 1 && (
+          <div
+            className="absolute left-4 top-0 w-0.5 bg-gray-200"
+            style={{
+              height: `${(reversedActivities.length - 1) * 6 * 16 + 32}px`,
+            }}
+          />
+        )}
 
         <div className="space-y-6">
-          {[...activities].reverse().map((activity) => {
+          {reversedActivities.map((activity) => {
             const config = ACTIVITY_CONFIG[activity.activityType] || {
               label: activity.activityType,
               icon: Clock,
@@ -95,20 +123,31 @@ export function OrderActivityTimeline({ activities }: OrderActivityTimelineProps
                     <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
                   )}
                   {activity.metadata && Object.keys(activity.metadata).length > 0 && (() => {
-                    const previousStatus = activity.metadata.previousStatus;
-                    const newStatus = activity.metadata.newStatus;
-                    if (previousStatus && newStatus) {
-                      const prevStatusStr = String(previousStatus);
-                      const newStatusStr = String(newStatus);
-                      return (
-                        <div className="text-xs text-gray-500 mt-1">
-                          <span>
-                            De {STATUS_LABELS[prevStatusStr] || prevStatusStr} a {STATUS_LABELS[newStatusStr] || newStatusStr}
-                          </span>
-                        </div>
-                      );
+                    const previousStatus = activity.metadata.previousStatus as OrderStatus | undefined;
+                    const newStatus = activity.metadata.newStatus as OrderStatus | undefined;
+                    const note = activity.metadata.note as string | undefined;
+
+                    if (!previousStatus && !newStatus && !note) {
+                      return null;
                     }
-                    return null;
+
+                    return (
+                      <div className="space-y-2">
+                        {previousStatus && newStatus && (
+                          <div className="text-xs text-gray-500">
+                            <span>
+                              De <strong>{STATUS_LABELS[previousStatus] || String(previousStatus)}</strong> a <strong>{STATUS_LABELS[newStatus] || String(newStatus)}</strong>
+                            </span>
+                          </div>
+                        )}
+                        {note && (
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2">
+                            <p className="text-xs font-semibold text-gray-700 mb-1">Nota:</p>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{note}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
                   })()}
                 </div>
               </div>

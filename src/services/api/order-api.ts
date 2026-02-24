@@ -1,6 +1,6 @@
 import { BaseApiClient } from './base-api-client';
 import { handleResponse, handleFetchError } from './base-api-client';
-import type { Order, OrderDetail, OrderActivity } from '@/types';
+import type { Order, OrderDetail, OrderActivity, OrderStatus, OrderStatusTransition } from '@/types';
 
 export class OrderApi extends BaseApiClient {
   async createOrder(draftId: string): Promise<{ orderId: string }> {
@@ -53,15 +53,27 @@ export class OrderApi extends BaseApiClient {
     }
   }
 
-  async updateOrderStatus(orderId: string, status: 'in_production' | 'shipped'): Promise<void> {
+  async updateOrderStatus(orderId: string, status: OrderStatus, note?: string | null): Promise<void> {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.baseUrl}/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderStatus: status }),
+        body: JSON.stringify({ orderStatus: status, note: note || null }),
       });
       await handleResponse<void>(response);
+    } catch (error) {
+      return handleFetchError(error);
+    }
+  }
+
+  async getAvailableStatusTransitions(orderId: string): Promise<{ transitions: OrderStatusTransition[] }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${this.baseUrl}/orders/${orderId}/available-transitions`, {
+        headers,
+      });
+      return handleResponse<{ transitions: OrderStatusTransition[] }>(response);
     } catch (error) {
       return handleFetchError(error);
     }
