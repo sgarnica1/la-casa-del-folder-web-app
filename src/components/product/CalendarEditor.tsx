@@ -751,8 +751,8 @@ export function CalendarEditor({
       </div>
 
       {editingSlot && editingImage && editingDimensions && (
-        <Dialog open={!!editingSlotId} onOpenChange={(open) => !open && setEditingSlotId(null)} closeOnOutsideClick={false}>
-          <DialogContent className="w-full h-full md:w-full md:max-w-[95vw] md:h-auto md:max-h-[90vh] p-0 flex flex-col rounded-none md:!rounded-2xl m-0 md:m-4">
+        <Dialog open={!!editingSlotId} onOpenChange={(open) => !open && setEditingSlotId(null)} closeOnOutsideClick={false} className="md:max-w-[95vw] xl:max-w-[80vw] md:w-full">
+          <DialogContent className="w-full h-full md:w-full md:max-w-[95vw] md:h-[90vh] p-0 flex flex-col rounded-none md:!rounded-2xl m-0 md:m-4">
             <PhotoEditor
               imageId={editingImage.id}
               imageUrl={editingImage.url}
