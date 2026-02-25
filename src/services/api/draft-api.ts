@@ -67,11 +67,23 @@ export class DraftApi extends BaseApiClient {
   async updateDraft(draftId: string, updates: Partial<Draft>): Promise<Draft> {
     try {
       const headers = await this.getAuthHeaders();
-      
-      const normalizedUpdates: Partial<Draft> = { ...updates };
-      
+
+      const apiPayload: {
+        title?: string;
+        layoutItems?: Array<{
+          id: string;
+          slotId: string;
+          imageId: string | null;
+          transform?: { x: number; y: number; scale: number; rotation: number } | null;
+        }>;
+      } = {};
+
+      if (updates.title !== undefined) {
+        apiPayload.title = updates.title;
+      }
+
       if (updates.layoutItems) {
-        normalizedUpdates.layoutItems = updates.layoutItems.map(item => {
+        apiPayload.layoutItems = updates.layoutItems.map(item => {
           const normalizedItem: {
             id: string;
             slotId: string;
@@ -82,7 +94,7 @@ export class DraftApi extends BaseApiClient {
             slotId: item.slotId,
             imageId: item.imageId ?? null,
           };
-          
+
           if (item.transform !== undefined) {
             normalizedItem.transform = item.transform ? {
               x: item.transform.x,
@@ -91,15 +103,15 @@ export class DraftApi extends BaseApiClient {
               rotation: item.transform.rotation,
             } : null;
           }
-          
+
           return normalizedItem;
         });
       }
-      
+
       const response = await fetch(`${this.baseUrl}/drafts/${draftId}`, {
         method: 'PATCH',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(normalizedUpdates),
+        body: JSON.stringify(apiPayload),
       });
       return handleResponse<Draft>(response);
     } catch (error) {
