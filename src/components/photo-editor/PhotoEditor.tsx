@@ -368,7 +368,7 @@ export function PhotoEditor({
               el.setAttribute('data-height', rect.height.toString());
             }
           }}
-          className="flex-1 flex items-center justify-center bg-gray-50 p-2 md:p-4 min-h-0 overflow-auto"
+          className="flex-1 flex items-center justify-center bg-gray-50 p-2 md:p-6 min-h-0 overflow-auto"
         >
           <EditorCanvas
             imageUrl={imageUrl}
@@ -382,7 +382,7 @@ export function PhotoEditor({
         </div>
 
         {/* Desktop Sidebar */}
-        <div className="hidden md:flex w-96 border-l bg-white flex-col max-h-[calc(95vh-80px)]">
+        <div className="hidden md:flex w-80 border-l bg-white flex-col max-h-[calc(95vh-80px)]">
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <QualityIndicator
               originalWidth={originalWidth}
